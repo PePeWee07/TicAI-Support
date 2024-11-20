@@ -1,0 +1,106 @@
+from flask import Flask, request, jsonify
+from services.pdf_service import extract_text_from_pdf
+from services.openai_service import obtener_respuesta, ver_historial, eliminar_hilo, verificar_o_crear_asistente
+import os
+
+app = Flask(__name__)
+
+# Ruta al archivo PDF
+pdf_path = os.path.join(os.path.dirname(__file__), '../Docs/UCACUE_TICS.pdf')
+if not os.path.exists(pdf_path):
+    raise FileNotFoundError(f"El archivo PDF no se encuentra en la ruta especificada: {pdf_path}")
+
+
+# Extraer texto del PDF al iniciar la aplicación
+try:
+    contexto = extract_text_from_pdf(pdf_path)
+except Exception as e:
+    print(f"Error inesperado al procesar el PDF: {e}")
+    contexto = None
+
+
+# Inicializar el asistente
+assistant = None
+try:
+    if contexto:
+        assistant = verificar_o_crear_asistente(contexto)
+    else:
+        print("No se pudo extraer el contexto del PDF. El asistente no será inicializado.")
+except ValueError as e:
+    print(f"Advertencia: {e}. El asistente debe ser creado manualmente.")
+except Exception as e:
+    print(f"Error inesperado al inicializar el asistente: {e}")
+    
+    
+# Ruta para preguntar al asistente
+@app.route('/preguntar', methods=['POST'])
+def preguntar():
+    if contexto is None:
+        return jsonify({"error": "El contexto no está disponible debido a un error al procesar el PDF."}), 500
+
+    if assistant is None:
+        return jsonify({"error": "El asistente no está disponible debido a un error."}), 500
+
+    data = request.json
+    pregunta = data.get('pregunta')
+    thread_id = data.get('thread_id')
+    nombre = data.get('nombre')
+    rol = data.get('rol', 'Invitado') # Valor por defecto 'Invitado'
+
+    if not pregunta:
+        return jsonify({"error": "Se requiere una pregunta."}), 400
+    if not nombre:
+        return jsonify({"error": "Se requiere un nombre."}), 400
+
+    try:
+        respuesta, thread_id = obtener_respuesta(assistant.id, pregunta, nombre, rol, thread_id)
+        return jsonify({"respuesta": respuesta, "thread_id": thread_id}), 200
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 404  # Hilo no encontrado o eliminado
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    
+# Ruta para obtener el historial de mensajes de un hilo
+@app.route('/historial', methods=['GET'])
+def obtener_historial():
+    thread_id = request.args.get('thread_id')  # Obtener el thread_id de los parámetros de la URL
+
+    if not thread_id:
+        return jsonify({"error": "Se requiere un thread_id."}), 400
+
+    try:
+        historial = ver_historial(thread_id)
+        return jsonify({"historial": historial}), 200
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# Ruta para eliminar un hilo
+@app.route('/eliminar-hilo', methods=['DELETE'])
+def eliminar_hilo_endpoint():
+    thread_id = request.args.get('thread_id')  # Obtener el thread_id de los parámetros de la URL
+
+    if not thread_id:
+        return jsonify({"error": "Se requiere un thread_id."}), 400
+
+    try:
+        mensaje = eliminar_hilo(thread_id)
+        return jsonify({"mensaje": mensaje}), 200
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+if __name__ == '__main__':
+    app.run(
+    host="0.0.0.0", 
+    port=8080, 
+    debug=True, 
+    threaded=True, 
+    #ssl_context=('cert.pem', 'key.pem')
+)
+
