@@ -1,4 +1,5 @@
 import PyPDF2
+from config.logging_config import logger
 
 def extract_text_from_pdf(pdf_path):
     try:
@@ -12,6 +13,8 @@ def extract_text_from_pdf(pdf_path):
                 text += page_text
             return text
     except (FileNotFoundError, PyPDF2.errors.PdfReadError) as e:
+        logger.error(f"No se pudo leer el archivo PDF: {e}")
         raise RuntimeError(f"No se pudo leer el archivo PDF: {e}")
     except Exception as e:
+        logger.error(f"Ocurrió un error inesperado al procesar el PDF: {e}")
         raise RuntimeError(f"Ocurrió un error inesperado al procesar el PDF: {e}")

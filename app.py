@@ -1,21 +1,25 @@
 from flask import Flask, request, jsonify
 from services.pdf_service import extract_text_from_pdf
 from services.openai_service import obtener_respuesta, ver_historial, eliminar_hilo, verificar_o_crear_asistente
+from config.logging_config import logger
 import os
+import atexit
 
 app = Flask(__name__)
 
 # Ruta al archivo PDF
-pdf_path = os.path.join(os.path.dirname(__file__), '../Docs/UCACUE_TICS.pdf')
+pdf_path = os.path.join(os.path.dirname(__file__), 'Docs/UCACUE_TICS.pdf')
 if not os.path.exists(pdf_path):
+    logger.error(f"El archivo PDF no se encuentra en la ruta especificada: {pdf_path}")
     raise FileNotFoundError(f"El archivo PDF no se encuentra en la ruta especificada: {pdf_path}")
 
 
 # Extraer texto del PDF al iniciar la aplicación
 try:
     contexto = extract_text_from_pdf(pdf_path)
+    logger.info("Texto extraído del PDF correctamente.")
 except Exception as e:
-    print(f"Error inesperado al procesar el PDF: {e}")
+    logger.error(f"Error inesperado al procesar el PDF: {e}")
     contexto = None
 
 
@@ -25,11 +29,11 @@ try:
     if contexto:
         assistant = verificar_o_crear_asistente(contexto)
     else:
-        print("No se pudo extraer el contexto del PDF. El asistente no será inicializado.")
+        logger.error("No se pudo extraer el contexto del PDF. El asistente no será inicializado.")
 except ValueError as e:
-    print(f"Advertencia: {e}. El asistente debe ser creado manualmente.")
+    logger.error(f"Advertencia: {e}. El asistente debe ser creado manualmente.")
 except Exception as e:
-    print(f"Error inesperado al inicializar el asistente: {e}")
+    logger.error(f"Error inesperado al inicializar el asistente: {e}")
     
     
 # Ruta para preguntar al asistente
@@ -56,8 +60,10 @@ def preguntar():
         respuesta, thread_id = obtener_respuesta(assistant.id, pregunta, nombre, rol, thread_id)
         return jsonify({"respuesta": respuesta, "thread_id": thread_id}), 200
     except ValueError as e:
+        logger.error(f"Error al obtener respuesta: {e}")
         return jsonify({"error": str(e)}), 404  # Hilo no encontrado o eliminado
     except Exception as e:
+        logger.error(f"Error inesperado al obtener respuesta: {e}")
         return jsonify({"error": str(e)}), 500
 
     
@@ -73,8 +79,10 @@ def obtener_historial():
         historial = ver_historial(thread_id)
         return jsonify({"historial": historial}), 200
     except ValueError as e:
+        logger.error(f"Error al obtener historial: {e}")
         return jsonify({"error": str(e)}), 404
     except Exception as e:
+        logger.error(f"Error inesperado al obtener historial: {e}")
         return jsonify({"error": str(e)}), 500
 
 
@@ -90,16 +98,26 @@ def eliminar_hilo_endpoint():
         mensaje = eliminar_hilo(thread_id)
         return jsonify({"mensaje": mensaje}), 200
     except ValueError as e:
+        logger.error(f"Error al eliminar hilo: {e}")
         return jsonify({"error": str(e)}), 404
     except Exception as e:
+        logger.error(f"Error inesperado al eliminar hilo: {e}")
         return jsonify({"error": str(e)}), 500
+
+
+# Cerrar recursos al salir
+def clean_up():
+    logger.info("Cerrando aplicación y limpiando recursos.")
+    # Aquí puedes cerrar conexiones, limpiar buffers, etc.
+    
+atexit.register(clean_up)
 
 
 if __name__ == '__main__':
     app.run(
     host="0.0.0.0", 
-    port=8080, 
-    debug=True, 
+    port=5000, 
+    debug=False, 
     threaded=True, 
     #ssl_context=('cert.pem', 'key.pem')
 )

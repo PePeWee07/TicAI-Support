@@ -3,29 +3,41 @@ import os
 from dotenv import load_dotenv
 from openai import OpenAI
 import tiktoken
+from config.logging_config import logger
 
-load_dotenv()
+# Carga variables de entorno
+dotenv_path = os.path.join(os.path.dirname(__file__), '../.env')
+load_dotenv(dotenv_path)
+
+# Configurar la clave de API de OpenAI
 openai.api_key = os.getenv("OPENAI_API_KEY")
 if not openai.api_key:
+    logger.error("La clave de API de OpenAI no está configurada en el archivo .env.")
     raise ValueError("La clave de API de OpenAI no está configurada en el archivo .env.")
 
+
+# Crear una instancia de OpenAI
 client = OpenAI()
+
 
 # Crear un asistente con el contenido del documento proporcionado
 def crear_asistente(contexto):
-    assistant = client.beta.assistants.create(
-        name="Asistente de Soporte TIC",
-        instructions=(
-            "Eres un asistente diseñado para proporcionar soporte tecnológico en el área de TIC de la Universidad Católica de Cuenca. "
-            "Responde siempre de forma clara y directa basándote únicamente en el contenido del documento proporcionado. No menciones ni hagas referencia al documento en tus respuestas. "
-            "Si no puedes encontrar la información en el contenido proporcionado, indica que no tienes suficiente información para responder esa pregunta específicamente, pero no menciones el documento. "
-            "Nunca te limites a mencionar que existen canales de atención sin incluir sus detalles completos como números o correos electrónicos o direcciones si lo tienen. Responde de forma que el usuario pueda actuar directamente con la información dada."
-            f"Contenido del documento: {contexto}"
-        ),
-        tools=[],
-        model="gpt-3.5-turbo",
-    )
-    return assistant
+    try:
+        assistant = client.beta.assistants.create(
+            name="Asistente de Soporte TIC",
+            instructions=(
+                "Eres un asistente diseñado para proporcionar soporte tecnológico en el área de TIC de la Universidad Católica de Cuenca. "
+                "Responde siempre de forma clara y directa basándote únicamente en el contenido del documento proporcionado. No menciones ni hagas referencia al documento en tus respuestas. "
+                "Si no puedes encontrar la información en el contenido proporcionado, indica que no tienes suficiente información para responder esa pregunta específicamente, pero no menciones el documento. "
+                "Nunca te limites a mencionar que existen canales de atención sin incluir sus detalles completos como números o correos electrónicos o direcciones si lo tienen. Responde de forma que el usuario pueda actuar directamente con la información dada."
+                f"Contenido del documento: {contexto}"
+            ),
+            tools=[],
+            model="gpt-3.5-turbo",
+        )
+        return assistant
+    except Exception as e:
+        raise RuntimeError(e)
 
 
 # Verificar si el asistente existe o crear uno nuevo
@@ -38,8 +50,8 @@ def verificar_o_crear_asistente(contexto):
         try:
             assistant = client.beta.assistants.retrieve(assistant_id=assistant_id)
         except Exception as e:
-            print(f"Error al recuperar el asistente existente: {e}")
             assistant = None
+            raise RuntimeError(e)
 
     if not assistant:
         # ---- DESABILITAR ESTA SECCIÓN SI SE DESEA CREAR UN NUEVO ASISTENTE ----
@@ -115,18 +127,21 @@ def obtener_respuesta(assistant_id, pregunta, nombre, rol, thread_id=None):
                 if msg.role == 'assistant':
                     return msg.content[0].text.value, thread.id
         else:
-            return f"La ejecución no se completó correctamente. Estado: {run.status}", thread.id
+            return f"La ejecución no se completó correctamente. Estado: {run.status}, {thread.id}"
     except ValueError as e:
-        raise ValueError(f"Error al gestionar el hilo: {e}")
+        raise ValueError(e)
     except Exception as e:
-        raise RuntimeError(f"Error al obtener la respuesta del asistente: {e}")
+        raise RuntimeError(e)
 
 
 # Obtener el número de tokens en una cadena de texto
 def num_tokens_from_string(PreguntaToToken: str, encoding_name: str = "cl100k_base") -> int:
-    encoding = tiktoken.get_encoding(encoding_name)
-    num_tokens = len(encoding.encode(PreguntaToToken))
-    return num_tokens
+    try:
+        encoding = tiktoken.get_encoding(encoding_name)
+        num_tokens = len(encoding.encode(PreguntaToToken))
+        return num_tokens
+    except Exception as e:
+        raise RuntimeError(e)
 
 
 # Ver historial de mensajes de un hilo
@@ -149,7 +164,7 @@ def ver_historial(thread_id):
         else:
             raise e
     except Exception as e:
-        raise RuntimeError(f"Error al recuperar el hilo: {str(e)}")
+        raise RuntimeError(f"Error al recuperar Historail del hilo: {str(e)}")
 
 
 # Eliminar un hilo
