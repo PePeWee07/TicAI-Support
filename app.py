@@ -7,6 +7,8 @@ import atexit
 
 app = Flask(__name__)
 
+logger.info("Iniciando aplicación...")
+
 # Ruta al archivo PDF
 pdf_path = os.path.join(os.path.dirname(__file__), 'Docs/UCACUE_TICS.pdf')
 if not os.path.exists(pdf_path):
