@@ -56,26 +56,26 @@ def verificar_o_crear_asistente(contexto):
 
     if not assistant:
         # ---- DESABILITAR ESTA SECCIÓN SI SE DESEA CREAR UN NUEVO ASISTENTE ----
-        # raise ValueError("El id del asistente no fue encontrado.")
+        raise ValueError("El id del asistente no fue encontrado.")
         # ----------------------------------------------------------------------
         
         # ---- HABILITAR ESTA SECCIÓN SI SE DESEA CREAR UN NUEVO ASISTENTE ----
-        try:
-            assistant = crear_asistente(contexto)
-            env_path = os.path.join(os.path.dirname(__file__), '../.env')
+        # try:
+        #     assistant = crear_asistente(contexto)
+        #     env_path = os.path.join(os.path.dirname(__file__), '../.env')
 
-            if not os.path.exists(env_path):
-                with open(env_path, 'w') as file:
-                    pass
+        #     if not os.path.exists(env_path):
+        #         with open(env_path, 'w') as file:
+        #             pass
 
-            with open(env_path, 'a') as file:
-                file.write(f'\nASSISTANT_ID = "{assistant.id}"')
+        #     with open(env_path, 'a') as file:
+        #         file.write(f'\nASSISTANT_ID = "{assistant.id}"')
         
-            print(f"ID del asistente guardado en {env_path}")
-            print(f"Nuevo asistente creado con ID: {assistant.id}")
+        #     print(f"ID del asistente guardado en {env_path}")
+        #     print(f"Nuevo asistente creado con ID: {assistant.id}")
         
-        except Exception as e:
-            raise RuntimeError(f"Error al crear un nuevo asistente: {e}")
+        # except Exception as e:
+        #     raise RuntimeError(f"Error al crear un nuevo asistente: {e}")
         # ----------------------------------------------------------------------
         
     return assistant
