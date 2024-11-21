@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify
 from services.pdf_service import extract_text_from_pdf
-from services.openai_service import obtener_respuesta, ver_historial, eliminar_hilo, verificar_o_crear_asistente
+from services.openai_service import obtener_respuesta, ver_historial, eliminar_hilo, eliminar_hilos, verificar_o_crear_asistente
 from config.logging_config import logger
 import os
 import atexit
@@ -51,7 +51,6 @@ def preguntar():
     pregunta = data.get('pregunta')
     thread_id = data.get('thread_id')
     nombre = data.get('nombre')
-    rol = data.get('rol', 'Invitado')
 
     if not pregunta:
         return jsonify({"error": "Se requiere una pregunta."}), 400
@@ -105,6 +104,28 @@ def eliminar_hilo_endpoint():
     except Exception as e:
         logger.error(f"Error inesperado al eliminar hilo: {e}")
         return jsonify({"error": str(e)}), 500
+
+# Ruta para eliminar hilos
+@app.route('/eliminar-hilos', methods=['DELETE'])
+def eliminar_hilos_endpoint():
+    data = request.get_json()
+    if not data or 'ids' not in data:
+        return jsonify({"error": "Se requiere una lista de IDs de hilos en el campo 'ids'."}), 400
+
+    ids = data['ids']
+    if not isinstance(ids, list) or not all(isinstance(i, str) for i in ids):
+        return jsonify({"error": "El campo 'ids' debe ser una lista de strings."}), 400
+
+    try:
+        mensajes = eliminar_hilos(ids)
+        logger.info(f"Hilos eliminados: {mensajes}")
+        return jsonify({"mensajes": mensajes}), 200
+    except TypeError as e:
+        logger.error(f"Error al eliminar hilos: {e}")
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        logger.error(f"Error inesperado al eliminar hilos: {e}")
+        return jsonify({"error": {e}}), 500
 
 
 # Cerrar recursos al salir

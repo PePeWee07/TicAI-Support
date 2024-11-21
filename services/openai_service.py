@@ -183,3 +183,15 @@ def eliminar_hilo(thread_id):
             raise e
     except Exception as e:
         raise RuntimeError(f"Error al eliminar el hilo con ID {thread_id}: {e}")
+    
+# Función para eliminar múltiples hilos
+def eliminar_hilos(thread_ids):
+    if not isinstance(thread_ids, list):
+        raise TypeError("El argumento debe ser una lista de IDs de hilos.")
+
+    resultados = []
+    for thread_id in thread_ids:
+        resultado = eliminar_hilo(thread_id)
+        resultados.append(resultado)
+
+    return resultados
