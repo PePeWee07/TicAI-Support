@@ -74,7 +74,7 @@ pip install tiktoken
 1. Asegúrate de incluir un archivo `.env` en la raíz de tu proyecto con las siguientes variables de entorno:
 
 ```plaintext
-TOKEN_OPEN_IA=tu_clave_api_de_openai
+OPENAI_API_KEY=tu_clave_api_de_openai
 ASSISTANT_ID=tu_id_assistant
 ```
 
@@ -84,6 +84,12 @@ ASSISTANT_ID=tu_id_assistant
 python app.py
 ```
 
+## Preguntas frecuentes:
+1. ¿Qué servicios ofrece el DTIC?
+2. ¿Cómo puedo solicitar soporte técnico?
+3. ¿Qué debo hacer si tengo problemas con la red o conectividad?
+4. ¿Cómo solicito la recarga de tóner o cartuchos?
+5. ¿Cómo actualizo información en el sitio web institucional?
 
 
 ## Estructura de OpenAi

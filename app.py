@@ -51,7 +51,7 @@ def preguntar():
     pregunta = data.get('pregunta')
     thread_id = data.get('thread_id')
     nombre = data.get('nombre')
-    rol = data.get('rol', 'Invitado') # Valor por defecto 'Invitado'
+    rol = data.get('rol', 'Invitado')
 
     if not pregunta:
         return jsonify({"error": "Se requiere una pregunta."}), 400
@@ -59,7 +59,7 @@ def preguntar():
         return jsonify({"error": "Se requiere un nombre."}), 400
 
     try:
-        respuesta, thread_id = obtener_respuesta(assistant.id, pregunta, nombre, rol, thread_id)
+        respuesta, thread_id = obtener_respuesta(assistant.id, pregunta, thread_id, nombre)
         return jsonify({"respuesta": respuesta, "thread_id": thread_id}), 200
     except ValueError as e:
         logger.error(f"Error al obtener respuesta: {e}")

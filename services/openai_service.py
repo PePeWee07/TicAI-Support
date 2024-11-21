@@ -26,10 +26,11 @@ def crear_asistente(contexto):
         assistant = client.beta.assistants.create(
             name="Asistente de Soporte TIC",
             instructions=(
-                "Eres un asistente diseñado para proporcionar soporte tecnológico en el área de TIC de la Universidad Católica de Cuenca. "
-                "Responde siempre de forma clara y directa basándote únicamente en el contenido del documento proporcionado. No menciones ni hagas referencia al documento en tus respuestas. "
-                "Si no puedes encontrar la información en el contenido proporcionado, indica que no tienes suficiente información para responder esa pregunta específicamente, pero no menciones el documento. "
-                "Nunca te limites a mencionar que existen canales de atención sin incluir sus detalles completos como números o correos electrónicos o direcciones si lo tienen. Responde de forma que el usuario pueda actuar directamente con la información dada."
+                "Eres un asistente diseñado unicamente para proporcionar soporte tecnológico en el área de TIC de la Universidad Católica de Cuenca. "
+                "Tu función principal es ofrecer asistencia y resolver dudas relacionadas con los servicios tecnológicos de la Universidad Católica de Cuenca."
+                "Responde siempre de forma clara y directa basándote únicamente en el contenido del documento proporcionado."
+                "Si no encuentras información relacionada en el documento, indica que no tienes esa información en tu conocimiento actual."
+                "No respondas a preguntas que no esten relacionadas con el contenido del documento proporcionado."
                 f"Contenido del documento: {contexto}"
             ),
             tools=[],
@@ -55,26 +56,26 @@ def verificar_o_crear_asistente(contexto):
 
     if not assistant:
         # ---- DESABILITAR ESTA SECCIÓN SI SE DESEA CREAR UN NUEVO ASISTENTE ----
-        raise ValueError("El id del asistente no fue encontrado.")
+        # raise ValueError("El id del asistente no fue encontrado.")
         # ----------------------------------------------------------------------
         
         # ---- HABILITAR ESTA SECCIÓN SI SE DESEA CREAR UN NUEVO ASISTENTE ----
-        # try:
-        #     assistant = crear_asistente(contexto)
-        #     env_path = os.path.join(os.path.dirname(__file__), '../.env')
+        try:
+            assistant = crear_asistente(contexto)
+            env_path = os.path.join(os.path.dirname(__file__), '../.env')
 
-        #     if not os.path.exists(env_path):
-        #         with open(env_path, 'w') as file:
-        #             pass
+            if not os.path.exists(env_path):
+                with open(env_path, 'w') as file:
+                    pass
 
-        #     with open(env_path, 'a') as file:
-        #         file.write(f'\nASSISTANT_ID = "{assistant.id}"')
+            with open(env_path, 'a') as file:
+                file.write(f'\nASSISTANT_ID = "{assistant.id}"')
         
-        #     print(f"ID del asistente guardado en {env_path}")
-        #     print(f"Nuevo asistente creado con ID: {assistant.id}")
+            print(f"ID del asistente guardado en {env_path}")
+            print(f"Nuevo asistente creado con ID: {assistant.id}")
         
-        # except Exception as e:
-        #     raise RuntimeError(f"Error al crear un nuevo asistente: {e}")
+        except Exception as e:
+            raise RuntimeError(f"Error al crear un nuevo asistente: {e}")
         # ----------------------------------------------------------------------
         
     return assistant
@@ -101,7 +102,7 @@ def get_or_create_thread(thread_id=None):
 
 
 # Obtener respuesta del asistente para una pregunta específica
-def obtener_respuesta(assistant_id, pregunta, nombre, rol, thread_id=None):
+def obtener_respuesta(assistant_id, pregunta, thread_id, nombre_usuario):
     try:
         
         if num_tokens_from_string(PreguntaToToken=pregunta) > 500:
@@ -118,11 +119,11 @@ def obtener_respuesta(assistant_id, pregunta, nombre, rol, thread_id=None):
         run = client.beta.threads.runs.create_and_poll(
             thread_id=thread.id,
             assistant_id=assistant_id,
-            instructions= f"Diríjase al usuario como {nombre}. El usuario es {rol}.",
-            max_prompt_tokens=500,  # Limitar pregunta y historial de mensajes f"Contenido del documento: {contexto}"
-            max_completion_tokens=500, # Limitar respuesta
-            temperature=0.77
-        )
+            additional_instructions=(f"Dirigete al usuario utilizando el nombre '{nombre_usuario}'.")
+            # max_prompt_tokens=500,  # Limitar pregunta y historial de mensajes
+            # max_completion_tokens=500, # Limitar respuesta
+            # temperature=0.77
+        )  
         
         if run.status == 'completed':
             messages = client.beta.threads.messages.list(thread_id=thread.id)
@@ -130,7 +131,7 @@ def obtener_respuesta(assistant_id, pregunta, nombre, rol, thread_id=None):
                 if msg.role == 'assistant':
                     return msg.content[0].text.value, thread.id
         else:
-            return f"La ejecución no se completó correctamente. Estado: {run.status}, {thread.id}"
+            return f"La ejecución no se completó correctamente. Estado: {run.status}", thread.id
     except ValueError as e:
         raise ValueError(e)
     except Exception as e:
