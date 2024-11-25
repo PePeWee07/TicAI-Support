@@ -89,7 +89,8 @@ def get_or_create_thread(thread_id=None):
             return thread
         except openai.OpenAIError as e:
             if "No thread found" in str(e):
-                raise ValueError(f"Hilo con ID {thread_id} no encontrado o ya ha sido eliminado.")
+                thread = client.beta.threads.create()
+                return thread
             else:
                 raise e
         except Exception as e:
