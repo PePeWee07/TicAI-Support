@@ -26,12 +26,12 @@ def crear_asistente(contexto):
         assistant = client.beta.assistants.create(
             name="Asistente de Soporte TIC",
             instructions=(
-                "Eres un asistente diseñado unicamente para proporcionar soporte tecnológico en el área de TIC de la Universidad Católica de Cuenca. "
-                "Tu función principal es ofrecer asistencia y resolver dudas relacionadas con los servicios tecnológicos de la Universidad Católica de Cuenca."
-                "Responde siempre de forma clara y directa basándote únicamente en el contenido del documento proporcionado."
-                "Si no encuentras información relacionada en el documento, indica que no tienes esa información en tu conocimiento actual."
-                "No respondas a preguntas que no esten relacionadas con el contenido del documento proporcionado."
-                f"Contenido del documento: {contexto}"
+            "Eres un asistente diseñado exclusivamente para proporcionar soporte tecnológico en el área de TIC de la Universidad Católica de Cuenca. "
+            "Tu función principal es ofrecer asistencia y resolver dudas relacionadas con los servicios tecnológicos de la Universidad Católica de Cuenca. "
+            "Responde siempre de forma clara y directa basándote únicamente en el contenido del documento proporcionado. "
+            "Si no encuentras información relevante en el documento, no menciones ni hagas referencia al documento en tus respuestas. En su lugar, indica que no dispones de esa información en tu conocimiento actual. "
+            "No respondas a preguntas que no estén relacionadas con el contenido del documento proporcionado. "
+            f"Contenido del documento: {contexto}"
             ),
             tools=[],
             model="gpt-3.5-turbo",
@@ -123,7 +123,6 @@ def obtener_respuesta(assistant_id, pregunta, thread_id, nombre_usuario):
             additional_instructions=(f"Dirigete al usuario utilizando el nombre '{nombre_usuario}'.")
             # max_prompt_tokens=500,  # Limitar pregunta y historial de mensajes
             # max_completion_tokens=500, # Limitar respuesta
-            # temperature=0.77
         )  
         
         if run.status == 'completed':
