@@ -10,15 +10,19 @@ dotenv_path = os.path.join(os.path.dirname(__file__), '../.env')
 load_dotenv(dotenv_path)
 
 # Configurar la clave de API de OpenAI
-openai.api_key = os.getenv("OPENAI_API_KEY")
+openai.api_key = os.getenv("GPT_TICS_KEY")
 if not openai.api_key:
-    logger.error("La clave de API de OpenAI no está configurada en el archivo .env.")
-    raise ValueError("La clave de API de OpenAI no está configurada en el archivo .env.")
+    logger.error("La clave de API 'GPT_TICS_KEY' de OpenAI no está configurada.")
+    raise ValueError("La clave de API 'GPT_TICS_KEY' de OpenAI no está configurada.")
 
+# Configurar la clave de Moderation de OpenAI
+openai.api_key = os.getenv("MODERATION_KEY")
+if not openai.api_key:
+    logger.error("La clave de API 'MODERATION_KEY' de OpenAI no está configurada.")
+    raise ValueError("La clave de API 'MODERATION_KEY' de OpenAI no está configurada.")
 
 # Crear una instancia de OpenAI
 client = OpenAI()
-
 
 # Crear un asistente con el contenido del documento proporcionado
 def crear_asistente(contexto):
@@ -43,7 +47,6 @@ def crear_asistente(contexto):
 
 # Verificar si el asistente existe o crear uno nuevo
 def verificar_o_crear_asistente(contexto):
-    
     assistant_id = os.getenv("ASSISTANT_ID")
     assistant = None
 

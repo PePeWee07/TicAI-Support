@@ -62,16 +62,15 @@ def preguntar():
         return jsonify({"respuesta": respuesta, "thread_id": thread_id}), 200
     except ValueError as e:
         logger.error(f"Error al obtener respuesta: {e}")
-        return jsonify({"error": str(e)}), 404  # Hilo no encontrado o eliminado
+        return jsonify({"error": str(e)}), 404
     except Exception as e:
         logger.error(f"Error inesperado al obtener respuesta: {e}")
         return jsonify({"error": str(e)}), 500
 
-    
 # Ruta para obtener el historial de mensajes de un hilo
 @app.route('/historial', methods=['GET'])
 def obtener_historial():
-    thread_id = request.args.get('thread_id')  # Obtener el thread_id de los parámetros de la URL
+    thread_id = request.args.get('thread_id')
 
     if not thread_id:
         return jsonify({"error": "Se requiere un thread_id."}), 400
@@ -86,11 +85,10 @@ def obtener_historial():
         logger.error(f"Error inesperado al obtener historial: {e}")
         return jsonify({"error": str(e)}), 500
 
-
 # Ruta para eliminar un hilo
 @app.route('/eliminar-hilo', methods=['DELETE'])
 def eliminar_hilo_endpoint():
-    thread_id = request.args.get('thread_id')  # Obtener el thread_id de los parámetros de la URL
+    thread_id = request.args.get('thread_id')
 
     if not thread_id:
         return jsonify({"error": "Se requiere un thread_id."}), 400
@@ -127,14 +125,11 @@ def eliminar_hilos_endpoint():
         logger.error(f"Error inesperado al eliminar hilos: {e}")
         return jsonify({"error": {e}}), 500
 
-
 # Cerrar recursos al salir
 def clean_up():
     logger.info("Cerrando aplicación y limpiando recursos.")
-    # Aquí puedes cerrar conexiones, limpiar buffers, etc.
     
 atexit.register(clean_up)
-
 
 if __name__ == '__main__':
     app.run(

@@ -74,8 +74,9 @@ pip install tiktoken
 1. Asegúrate de incluir un archivo `.env` en la raíz de tu proyecto con las siguientes variables de entorno:
 
 ```plaintext
-OPENAI_API_KEY=tu_clave_api_de_openai
-ASSISTANT_ID=tu_id_assistant
+GPT_TICS_KEY=tu_clave_api_de_openai
+MODERATION_KEY=tu_id_assistant
+ASSISTANT_ID=tu_clave_moderation_de_openai
 ```
 
 2. Ejecuta la aplicación con el siguiente comando:
