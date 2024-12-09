@@ -1,9 +1,6 @@
 import openai
 
-# KEY GTP
-# openai.api_key = "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"
-# KEY MODERATION
-openai.api_key = "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"
+
 
 
 # Prueba una solicitud simple
