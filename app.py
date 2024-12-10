@@ -1,35 +1,36 @@
 from flask import Flask, request, jsonify
-from services.pdf_service import extract_text_from_pdf
-from services.openai_service import obtener_respuesta, ver_historial, eliminar_hilo, eliminar_hilos, verificar_o_crear_asistente
+import services.pdf_service as pdf_service
+import services.openai_service as openai_service
 from config.logging_config import logger
 import os
 import atexit
 
 app = Flask(__name__)
 
-logger.info("Iniciando aplicación...")
+logger.info("Iniciando Servicio...")
 
-# Ruta al archivo PDF
+# ==================================================
+# Cargar archivo PDF
+# ==================================================
 pdf_path = os.path.join(os.path.dirname(__file__), 'Docs/UCACUE_TICS.pdf')
 if not os.path.exists(pdf_path):
     logger.error(f"El archivo PDF no se encuentra en la ruta especificada: {pdf_path}")
     raise FileNotFoundError(f"El archivo PDF no se encuentra en la ruta especificada: {pdf_path}")
 
-
-# Extraer texto del PDF al iniciar la aplicación
 try:
-    contexto = extract_text_from_pdf(pdf_path)
+    context = pdf_service.extract_text_from_pdf(pdf_path)
     logger.info("Texto extraído del PDF correctamente.")
 except Exception as e:
     logger.error(f"Error inesperado al procesar el PDF: {e}")
-    contexto = None
+    context = None
 
-
+# ==================================================
 # Inicializar el asistente
+# ==================================================
 assistant = None
 try:
-    if contexto:
-        assistant = verificar_o_crear_asistente(contexto)
+    if context:
+        assistant = openai_service.verify_or_create_assistant(context)
     else:
         logger.error("No se pudo extraer el contexto del PDF. El asistente no será inicializado.")
 except ValueError as e:
@@ -38,28 +39,27 @@ except Exception as e:
     logger.error(f"Error inesperado al inicializar el asistente: {e}")
     
     
+# ==================================================
 # Ruta para preguntar al asistente
-@app.route('/preguntar', methods=['POST'])
-def preguntar():
-    if contexto is None:
-        return jsonify({"error": "El contexto no está disponible debido a un error al procesar el PDF."}), 500
-
+# ==================================================
+@app.route('/ask', methods=['POST'])
+def process_user_input():
     if assistant is None:
         return jsonify({"error": "El asistente no está disponible debido a un error."}), 500
 
     data = request.json
-    pregunta = data.get('pregunta')
+    ask = data.get('ask')
     thread_id = data.get('thread_id')
-    nombre = data.get('nombre')
+    name = data.get('name')
 
-    if not pregunta:
+    if not ask:
         return jsonify({"error": "Se requiere una pregunta."}), 400
-    if not nombre:
+    if not name:
         return jsonify({"error": "Se requiere un nombre."}), 400
 
     try:
-        respuesta, thread_id = obtener_respuesta(assistant.id, pregunta, thread_id, nombre)
-        return jsonify({"respuesta": respuesta, "thread_id": thread_id}), 200
+        answer, thread_id = openai_service.get_response(assistant.id, ask, thread_id, name)
+        return jsonify({"answer": answer, "thread_id": thread_id}), 200
     except ValueError as e:
         logger.error(f"Error al obtener respuesta: {e}")
         return jsonify({"error": str(e)}), 404
@@ -67,17 +67,20 @@ def preguntar():
         logger.error(f"Error inesperado al obtener respuesta: {e}")
         return jsonify({"error": str(e)}), 500
 
-# Ruta para obtener el historial de mensajes de un hilo
-@app.route('/historial', methods=['GET'])
-def obtener_historial():
+
+# ==================================================
+# Obtener el historial de mensajes de un hilo
+# ==================================================
+@app.route('/history', methods=['GET'])
+def get_history():
     thread_id = request.args.get('thread_id')
 
     if not thread_id:
         return jsonify({"error": "Se requiere un thread_id."}), 400
 
     try:
-        historial = ver_historial(thread_id)
-        return jsonify({"historial": historial}), 200
+        history = openai_service.view_history(thread_id)
+        return jsonify({"history": history}), 200
     except ValueError as e:
         logger.error(f"Error al obtener historial: {e}")
         return jsonify({"error": str(e)}), 404
@@ -85,17 +88,20 @@ def obtener_historial():
         logger.error(f"Error inesperado al obtener historial: {e}")
         return jsonify({"error": str(e)}), 500
 
-# Ruta para eliminar un hilo
-@app.route('/eliminar-hilo', methods=['DELETE'])
-def eliminar_hilo_endpoint():
+
+# ==================================================
+# Eliminar un hilo
+# ==================================================
+@app.route('/delete-thread-id', methods=['DELETE'])
+def delete_thread_endpoint():
     thread_id = request.args.get('thread_id')
 
     if not thread_id:
         return jsonify({"error": "Se requiere un thread_id."}), 400
 
     try:
-        mensaje = eliminar_hilo(thread_id)
-        return jsonify({"mensaje": mensaje}), 200
+        message = openai_service.delete_thread(thread_id)
+        return jsonify({"message": message}), 200
     except ValueError as e:
         logger.error(f"Error al eliminar hilo: {e}")
         return jsonify({"error": str(e)}), 404
@@ -103,9 +109,12 @@ def eliminar_hilo_endpoint():
         logger.error(f"Error inesperado al eliminar hilo: {e}")
         return jsonify({"error": str(e)}), 500
 
-# Ruta para eliminar hilos
-@app.route('/eliminar-hilos', methods=['DELETE'])
-def eliminar_hilos_endpoint():
+
+# ==================================================
+# Eliminar multiples hilos
+# ==================================================
+@app.route('/delete-threads-ids', methods=['DELETE'])
+def delete_threads_endpoint():
     data = request.get_json()
     if not data or 'ids' not in data:
         return jsonify({"error": "Se requiere una lista de IDs de hilos en el campo 'ids'."}), 400
@@ -115,9 +124,9 @@ def eliminar_hilos_endpoint():
         return jsonify({"error": "El campo 'ids' debe ser una lista de strings."}), 400
 
     try:
-        mensajes = eliminar_hilos(ids)
-        logger.info(f"Hilos eliminados: {mensajes}")
-        return jsonify({"mensajes": mensajes}), 200
+        message = openai_service.delete_threads(ids)
+        logger.info(f"Hilos eliminados: {message}")
+        return jsonify({"message": message}), 200
     except TypeError as e:
         logger.error(f"Error al eliminar hilos: {e}")
         return jsonify({"error": str(e)}), 400
@@ -125,11 +134,14 @@ def eliminar_hilos_endpoint():
         logger.error(f"Error inesperado al eliminar hilos: {e}")
         return jsonify({"error": {e}}), 500
 
+
+# ==================================================
 # Cerrar recursos al salir
+# ==================================================
 def clean_up():
-    logger.info("Cerrando aplicación y limpiando recursos.")
-    
+    logger.info("Cerrando aplicación y limpiando recursos.") 
 atexit.register(clean_up)
+
 
 if __name__ == '__main__':
     app.run(
@@ -139,4 +151,3 @@ if __name__ == '__main__':
     threaded=True, 
     #ssl_context=('cert.pem', 'key.pem')
 )
-
