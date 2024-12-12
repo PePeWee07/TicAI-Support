@@ -3,6 +3,8 @@ import os
 from dotenv import load_dotenv
 from openai import OpenAI
 import tiktoken
+import json
+from datetime import datetime
 
 # ==================================================
 # Carga variables de entorno
@@ -11,16 +13,32 @@ from config.logging_config import logger
 
 load_dotenv(override=True)
 OpenAI_key = os.getenv("GPT_TICS_KEY")
+Moderation_Key = os.getenv("MODERATION_KEY")
+model_moderation = os.getenv("MODEL_MODERATION")
+encoding_base = os.getenv("ENCODING_BASE")
 
 if not  OpenAI_key :
     logger.error("La Api_key 'GPT_TICS_KEY' de OpenAI no está configura en la variables de entorno.")
     raise ValueError("La Api_key 'GPT_TICS_KEY' de OpenAI no está configura en la variables de entorno.")
+
+if not  Moderation_Key :
+    logger.error("La Api_key 'MODERATION_KEY' de OpenAI no está configura en la variables de entorno.")
+    raise ValueError("La Api_key 'MODERATION_KEY' de OpenAI no está configura en las variables de entorno.")
+
+if not  model_moderation :
+    logger.error("El modelo 'MODEL_MODERATION' de OpenAI no está configura en las variables de entorno.")
+    raise ValueError("El modelo 'MODEL_MODERATION' de OpenAI no está configura en las variables de entorno.")
+
+if not  encoding_base :
+    logger.error("El encoding 'ENCODING_BASE' de TikToken no está configura en las variables de entorno.")
+    raise ValueError("El encoding 'ENCODING_BASE' de TikToken no está configura en las variables de entorno.")
 
 
 # ==================================================
 # Crear una instancia de OpenAI
 # ==================================================
 client = OpenAI(api_key = OpenAI_key)
+moderation = OpenAI(api_key = Moderation_Key)
 
 
 # ==================================================
@@ -63,6 +81,7 @@ def verify_or_create_assistant(contexto):
         
     return assistant
 
+
 # ==================================================
 # Crear un asistente nuevo
 # ==================================================
@@ -89,26 +108,21 @@ def crear_asistente(contexto):
 # ==================================================
 # Obtener respuesta del asistente
 # ==================================================
-def get_response(assistant_id, pregunta, thread_id, nombre_usuario):
+def get_response(assistant_id, ask, thread_id, name_user):
     try:
-        
-        if num_tokens_from_string(PreguntaToToken=pregunta) > 500:
-            raise ValueError("La pregunta excede el límite de tokens permitido.")
         
         thread = get_or_create_thread(thread_id)
         
         client.beta.threads.messages.create(
             thread_id=thread.id,
             role="user",
-            content=pregunta
+            content=ask
         )
         
         run = client.beta.threads.runs.create_and_poll(
             thread_id=thread.id,
             assistant_id=assistant_id,
-            additional_instructions=(f"Dirigete al usuario utilizando el nombre '{nombre_usuario}'.")
-            # max_prompt_tokens=500,  # Limitar pregunta y historial de mensajes
-            # max_completion_tokens=500, # Limitar respuesta
+            additional_instructions=(f"Dirigete al usuario utilizando el nombre '{name_user}'.")
         )  
         
         if run.status == 'completed':
@@ -125,9 +139,29 @@ def get_response(assistant_id, pregunta, thread_id, nombre_usuario):
 
 
 # ==================================================
+# Modelo de moderación de texto
+# ==================================================
+def moderation_text(texto):
+    try:
+        response = moderation.moderations.create(
+            model=model_moderation,
+            input=texto,
+        )
+        
+        response_dict = response.to_dict()
+        response_json = json.dumps(response_dict, indent=4)
+        response_data = json.loads(response_json)
+        flagged = response_data["results"][0]["flagged"]
+        
+        return flagged
+    except Exception as e:
+        raise RuntimeError(e)
+    
+    
+# ==================================================
 # Obtener el número de tokens en una cadena de texto
 # ==================================================
-def num_tokens_from_string(answerToToken: str, encoding_name: str = "cl100k_base") -> int:
+def num_tokens_from_string(answerToToken: str, encoding_name: str = encoding_base) -> int:
     try:
         encoding = tiktoken.get_encoding(encoding_name)
         num_tokens = len(encoding.encode(answerToToken))
@@ -170,7 +204,7 @@ def view_history(thread_id):
             history.append({
                 "role": msg.role,
                 "content": msg.content[0].text.value if msg.content else "Sin contenido",
-                "timestamp": msg.created_at
+                "timestamp": datetime.fromtimestamp(msg.created_at).strftime("%d-%m-%Y %H:%M:%S")
             })
         return history
     except openai.OpenAIError as e:

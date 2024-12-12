@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify
 import services.pdf_service as pdf_service
 import services.openai_service as openai_service
+from services.moderation import moderation_required, validate_token_limit
 from config.logging_config import logger
 import os
 import atexit
@@ -8,6 +9,7 @@ import atexit
 app = Flask(__name__)
 
 logger.info("Iniciando Servicio...")
+
 
 # ==================================================
 # Cargar archivo PDF
@@ -23,6 +25,7 @@ try:
 except Exception as e:
     logger.error(f"Error inesperado al procesar el PDF: {e}")
     context = None
+
 
 # ==================================================
 # Inicializar el asistente
@@ -43,6 +46,8 @@ except Exception as e:
 # Ruta para preguntar al asistente
 # ==================================================
 @app.route('/ask', methods=['POST'])
+@moderation_required
+@validate_token_limit
 def process_user_input():
     if assistant is None:
         return jsonify({"error": "El asistente no está disponible debido a un error."}), 500
