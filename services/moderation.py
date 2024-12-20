@@ -14,7 +14,8 @@ def moderation_required(f):
                     "info": (
                         "Lamento informarte que ese tipo de comentarios no son apropiados. "
                         "Si continúas violando las políticas de la Universidad Católica de Cuenca, serás bloqueado."
-                    )
+                    ),
+                    'moderation': True
                 }
                 return jsonify(response), 400
         return f(*args, **kwargs)
