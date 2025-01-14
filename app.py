@@ -10,6 +10,18 @@ app = Flask(__name__)
 
 logger.info("Iniciando Servicio...")
 
+# ==================================================
+# Verificar si se ha configurado el token de OpenAI
+# ==================================================
+API_KEY = os.getenv("API_KEY")
+def require_api_key(f):
+    def wrapper(*args, **kwargs):
+        api_key = request.headers.get('Authorization')
+        if api_key != f"Bearer {API_KEY}":
+            return jsonify({"msg": "Unauthorized"}), 401
+        return f(*args, **kwargs)
+    wrapper.__name__ = f.__name__  
+    return wrapper
 
 # ==================================================
 # Cargar archivo PDF
@@ -48,6 +60,7 @@ except Exception as e:
 @app.route('/ask', methods=['POST'])
 @moderation_required
 @validate_token_limit
+@require_api_key
 def process_user_input():
     if assistant is None:
         return jsonify({"error": "El asistente no está disponible debido a un error."}), 500
@@ -77,6 +90,7 @@ def process_user_input():
 # Obtener el historial de mensajes de un hilo
 # ==================================================
 @app.route('/history', methods=['GET'])
+@require_api_key
 def get_history():
     thread_id = request.args.get('thread_id')
 
@@ -98,6 +112,7 @@ def get_history():
 # Eliminar un hilo
 # ==================================================
 @app.route('/delete-thread-id', methods=['DELETE'])
+@require_api_key
 def delete_thread_endpoint():
     thread_id = request.args.get('thread_id')
 
@@ -119,6 +134,7 @@ def delete_thread_endpoint():
 # Eliminar multiples hilos
 # ==================================================
 @app.route('/delete-threads-ids', methods=['DELETE'])
+@require_api_key
 def delete_threads_endpoint():
     data = request.get_json()
     if not data or 'ids' not in data:
