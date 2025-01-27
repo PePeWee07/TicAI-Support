@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify
 import services.pdf_service as pdf_service
 import services.openai_service as openai_service
-from services.moderation import moderation_required, validate_token_limit
+from services.utils import moderation_required, validate_token_limit
 from config.logging_config import logger
 import os
 import atexit
