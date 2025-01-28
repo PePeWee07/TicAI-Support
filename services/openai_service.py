@@ -62,7 +62,7 @@ def verify_or_create_assistant(contexto):
         
         # ---- HABILITAR ESTA SECCIÓN SI SE DESEA CREAR UN NUEVO ASISTENTE ----
         # try:
-        #     assistant = crear_asistente(contexto)
+        #     assistant = create_asistente(contexto)
         #     env_path = os.path.join(os.path.dirname(__file__), '../.env')
 
         #     if not os.path.exists(env_path):
@@ -85,7 +85,7 @@ def verify_or_create_assistant(contexto):
 # ==================================================
 # Crear un asistente nuevo
 # ==================================================
-def crear_asistente(contexto):
+def create_asistente(contexto):
     try:
         assistant = client.beta.assistants.create(
             name="Asistente de Soporte TIC",
