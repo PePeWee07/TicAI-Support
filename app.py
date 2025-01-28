@@ -1,5 +1,4 @@
 from flask import Flask, request, jsonify
-import services.pdf_service as pdf_service
 import services.openai_service as openai_service
 from services.utils import moderation_required, validate_token_limit
 from config.logging_config import logger
@@ -23,35 +22,11 @@ def require_api_key(f):
     wrapper.__name__ = f.__name__  
     return wrapper
 
-# ==================================================
-# Cargar archivo PDF
-# ==================================================
-pdf_path = os.path.join(os.path.dirname(__file__), 'Docs/UCACUE_TICS.pdf')
-if not os.path.exists(pdf_path):
-    logger.error(f"El archivo PDF no se encuentra en la ruta especificada: {pdf_path}")
-    raise FileNotFoundError(f"El archivo PDF no se encuentra en la ruta especificada: {pdf_path}")
-
-try:
-    context = pdf_service.extract_text_from_pdf(pdf_path)
-    logger.info("Texto extraído del PDF correctamente.")
-except Exception as e:
-    logger.error(f"Error inesperado al procesar el PDF: {e}")
-    context = None
-
 
 # ==================================================
 # Inicializar el asistente
 # ==================================================
-assistant = None
-try:
-    if context:
-        assistant = openai_service.verify_or_create_assistant(context)
-    else:
-        logger.error("No se pudo extraer el contexto del PDF. El asistente no será inicializado.")
-except ValueError as e:
-    logger.error(f"Advertencia: {e}. El asistente debe ser creado manualmente.")
-except Exception as e:
-    logger.error(f"Error inesperado al inicializar el asistente: {e}")
+assistant = openai_service.verify_assistant()
     
     
 # ==================================================

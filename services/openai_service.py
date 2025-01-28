@@ -16,6 +16,7 @@ OpenAI_key = os.getenv("GPT_TICS_KEY")
 Moderation_Key = os.getenv("MODERATION_KEY")
 model_moderation = os.getenv("MODEL_MODERATION")
 encoding_base = os.getenv("ENCODING_BASE")
+model_gpt = os.getenv("MODEL_GPT")
 
 if not  OpenAI_key :
     logger.error("La Api_key 'GPT_TICS_KEY' de OpenAI no está configura en la variables de entorno.")
@@ -44,7 +45,7 @@ moderation = OpenAI(api_key = Moderation_Key)
 # ==================================================
 # Verificar si el asistente existe o crear uno nuevo
 # ==================================================
-def verify_or_create_assistant(contexto):
+def verify_assistant():
     assistant_id = os.getenv("ASSISTANT_ID")
     assistant = None
 
@@ -56,53 +57,9 @@ def verify_or_create_assistant(contexto):
             raise RuntimeError(e)
 
     if not assistant:
-        # ---- DESABILITAR ESTA SECCIÓN SI SE DESEA CREAR UN NUEVO ASISTENTE ----
-        raise ValueError("El id del asistente no fue encontrado.")
-        # ----------------------------------------------------------------------
-        
-        # ---- HABILITAR ESTA SECCIÓN SI SE DESEA CREAR UN NUEVO ASISTENTE ----
-        # try:
-        #     assistant = crear_asistente(contexto)
-        #     env_path = os.path.join(os.path.dirname(__file__), '../.env')
-
-        #     if not os.path.exists(env_path):
-        #         with open(env_path, 'w') as file:
-        #             pass
-
-        #     with open(env_path, 'a') as file:
-        #         file.write(f'\nASSISTANT_ID = "{assistant.id}"')
-        
-        #     print(f"ID del asistente guardado en {env_path}")
-        #     print(f"Nuevo asistente creado con ID: {assistant.id}")
-        
-        # except Exception as e:
-        #     raise RuntimeError(f"Error al crear un nuevo asistente: {e}")
-        # ----------------------------------------------------------------------
+        raise ValueError("El ASSISTANT_ID del asistente no fue encontrado.")
         
     return assistant
-
-
-# ==================================================
-# Crear un asistente nuevo
-# ==================================================
-def crear_asistente(contexto):
-    try:
-        assistant = client.beta.assistants.create(
-            name="Asistente de Soporte TIC",
-            instructions=(
-            "Eres un asistente diseñado exclusivamente para proporcionar soporte tecnológico en el área de TIC de la Universidad Católica de Cuenca. "
-            "Tu función principal es ofrecer asistencia y resolver dudas relacionadas con los servicios tecnológicos de la Universidad Católica de Cuenca. "
-            "Responde siempre de forma clara y directa basándote únicamente en el contenido del documento proporcionado. "
-            "Si no encuentras información relevante en el documento, no menciones ni hagas referencia al documento en tus respuestas. En su lugar, indica que no dispones de esa información en tu conocimiento actual. "
-            "No respondas a preguntas que no estén relacionadas con el contenido del documento proporcionado. "
-            f"Contenido del documento: {contexto}"
-            ),
-            tools=[],
-            model="gpt-3.5-turbo",
-        )
-        return assistant
-    except Exception as e:
-        raise RuntimeError(e)
 
 
 # ==================================================
@@ -122,7 +79,7 @@ def get_response(assistant_id, ask, thread_id, name_user):
         run = client.beta.threads.runs.create_and_poll(
             thread_id=thread.id,
             assistant_id=assistant_id,
-            additional_instructions=(f"Dirigete al usuario utilizando el nombre '{name_user}'.")
+            additional_instructions=(f"Tratamiento del Usuario: Dirigite al usuario utilizando el nombre '{name_user}' en todas tus respuestas.")
         )  
         
         if run.status == 'completed':
