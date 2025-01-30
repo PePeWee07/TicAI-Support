@@ -5,6 +5,8 @@ from openai import OpenAI
 import tiktoken
 import json
 from datetime import datetime
+import re
+
 
 # ==================================================
 # Carga variables de entorno
@@ -86,7 +88,9 @@ def get_response(assistant_id, ask, thread_id, name_user):
             messages = client.beta.threads.messages.list(thread_id=thread.id)
             for msg in messages.data:
                 if msg.role == 'assistant':
-                    return msg.content[0].text.value, thread.id
+                    text_response = msg.content[0].text.value
+                    cleaned_response = re.sub(r'【\d+:\d+†[a-zA-Z]+】', '', text_response)
+                    return cleaned_response, thread.id
         else:
             return f"La ejecución no se completó correctamente. Estado: {run.status}", thread.id
     except ValueError as e:
