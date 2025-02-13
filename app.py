@@ -139,11 +139,10 @@ def clean_up():
 atexit.register(clean_up)
 
 
-if __name__ == '__main__':
-    app.run(
-    host="0.0.0.0", 
-    port=5000, 
-    debug=False, 
-    threaded=True, 
-    #ssl_context=('cert.pem', 'key.pem')
-)
+# if __name__ == '__main__':
+#     app.run(
+#     host="0.0.0.0", 
+#     port=5000, 
+#     debug=False, 
+#     threaded=True
+# )

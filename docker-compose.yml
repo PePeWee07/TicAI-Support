@@ -1,0 +1,22 @@
+version: "3.9"
+
+services:
+  IA-Soporte:
+    container_name: IA-Soporte
+    image: pepewee/whatsapp-api-cloud:latest
+    build: .
+    ports:
+      - "5000:5000"
+    env_file:
+      - .env
+    volumes:
+      - IASoporte:/app
+    restart: always
+    networks:
+      - virtual_assistant_network
+
+volumes:
+  IASoporte: 
+networks:
+  virtual_assistant_network:
+    external: true
