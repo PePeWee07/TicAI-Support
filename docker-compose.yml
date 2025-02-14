@@ -3,7 +3,7 @@ version: "3.9"
 services:
   IA-Soporte:
     container_name: IA-Soporte
-    image: pepewee/whatsapp-api-cloud:latest
+    image: pepewee/soportetic-openia:latest
     build: .
     ports:
       - "5000:5000"
