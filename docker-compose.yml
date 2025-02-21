@@ -4,19 +4,18 @@ services:
   IA-Soporte:
     container_name: IA-Soporte
     image: pepewee/soportetic-openia:latest
-    build: .
     ports:
       - "5000:5000"
     env_file:
       - .env
-    volumes:
-      - IASoporte:/app
     restart: always
+    volumes:
+      - IA_Logs:/app/logs
     networks:
       - virtual_assistant_network
 
 volumes:
-  IASoporte: 
+  IA_Logs:
 networks:
   virtual_assistant_network:
     external: true
