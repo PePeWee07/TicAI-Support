@@ -18,7 +18,6 @@ OpenAI_key = os.getenv("GPT_TICS_KEY")
 Moderation_Key = os.getenv("MODERATION_KEY")
 model_moderation = os.getenv("MODEL_MODERATION")
 encoding_base = os.getenv("ENCODING_BASE")
-model_gpt = os.getenv("MODEL_GPT")
 
 if not  OpenAI_key :
     logger.error("La Api_key 'GPT_TICS_KEY' de OpenAI no está configura en la variables de entorno.")

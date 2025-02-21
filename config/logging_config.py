@@ -4,7 +4,7 @@ from datetime import datetime
 from pytz import timezone
 
 def setup_logger():
-    log_directory = "logs"
+    log_directory = "/app/logs"
     os.makedirs(log_directory, exist_ok=True)
 
     log_file_name = datetime.now(timezone('America/Guayaquil')).strftime('logs-%d-%m-%Y.log')

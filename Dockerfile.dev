@@ -1,0 +1,17 @@
+# Usa una imagen ligera de Python
+FROM python:3.9-slim
+
+# Define el directorio de trabajo
+WORKDIR /app
+
+# Copia solo el archivo de dependencias
+COPY requirements.txt /app/requirements.txt
+
+# Instala las dependencias
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Expone el puerto 5000
+EXPOSE 5000
+
+# Comando para desarrollo (Gunicorn con autorecarga)
+CMD ["gunicorn", "-b", "0.0.0.0:5000", "app:app", "--reload", "--log-level=debug", "--access-logfile=-", "--error-logfile=-"]

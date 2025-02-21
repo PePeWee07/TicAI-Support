@@ -1,0 +1,23 @@
+version: "3.9"
+
+services:
+  IA-Soporte:
+    container_name: IA-Soporte-Dev
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    ports:
+      - "5000:5000"
+    env_file:
+      - .env
+    volumes:
+      - IASoporte:/app
+    networks:
+      - virtual_assistant_network
+    command: ["gunicorn", "-b", "0.0.0.0:5000", "app:app", "--reload", "--log-level=debug", "--access-logfile=-", "--error-logfile=-"]
+
+volumes:
+  IASoporte: 
+networks:
+  virtual_assistant_network:
+    external: true
