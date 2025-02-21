@@ -1,14 +1,18 @@
 # TicAI Support  
 **La herramienta de soporte académico y técnico impulsada por inteligencia artificial para la Universidad Católica de Cuenca.**
 
----
+## Repositorios Necesarios
+#### **Webhook**
+Repositorio: [Webhook](https://github.com/PePeWee07/TicAI-Support.git)
+#### **WhatsAppApiCloud_ApiRest**
+Repositorio: [Back-end](https://github.com/PePeWee07/WhatsAppApiCloud_ApiRest.git)
+#### **ERP Simulator**
+Repositorio: [ERP-Simulator](https://github.com/PePeWee07/ERP_simulator.git)
 
 ## Descripción  
 **TicAI Support** es una solución innovadora que utiliza tecnología avanzada de inteligencia artificial para mejorar el soporte académico y técnico dentro de la Universidad Católica de Cuenca. Diseñada para estudiantes, docentes y personal administrativo, la plataforma facilita la resolución de consultas relacionadas con servicios TIC, asistencia académica y procesos administrativos, optimizando tiempos y mejorando la experiencia de los usuarios.
 
 **Propósito:** Automatizar y facilitar el acceso a información clave y soporte relacionado con la Dirección de Tecnologías de la Información y Comunicación (TICS), brindando respuestas inmediatas y personalizadas.
-
----
 
 ## Características
 
@@ -36,53 +40,23 @@
 - Automatización de respuestas para disminuir la carga del personal técnico humano.
 - Soluciones rápidas y preconfiguradas para incidencias frecuentes.
 
----
-
-## Uso sugerido
-Esta herramienta puede ser utilizada por:
-- **Estudiantes**: Para obtener soporte técnico o académico relacionado con plataformas virtuales.
-- **Docentes**: Para asistencia en el uso de herramientas tecnológicas en su labor educativa.
-- **Administrativos**: Para resolver problemas técnicos y gestionar accesos a los sistemas internos.
-
----
-
-**TicAI Support: Tu aliado en la educación y soporte técnico con inteligencia artificial.**
-
----
-
-## Instalar  
-Para instalar las dependencias necesarias, sigue los pasos a continuación:
-
-```bash
-# Paso 1: Instalar OpenAI
-pip install openai  
-
-# Paso 2: Instalar PyPDF2 para manipular archivos PDF
-pip install PyPDF2
-
-# Paso 3: Instalar Flask para el servidor web
-pip install Flask
-
-# Paso 4: Instalar python-dotenv para manejar variables de entorno
-pip install python-dotenv
-
-# Paso 5: Instalar tiktoken para tokenización eficiente
-pip install tiktoken
-```
 
 ## Cómo usar:
-1. Asegúrate de incluir un archivo `.env` en la raíz de tu proyecto con las siguientes variables de entorno:
+1. **Asegúrate de editar el archivo `.env` en la raíz del proyecto:**
 
-```plaintext
-GPT_TICS_KEY=tu_clave_api_de_openai
-MODERATION_KEY=tu_id_assistant
-ASSISTANT_ID=tu_clave_moderation_de_openai
+```properties
+GPT_TICS_KEY="OPENAI_API_KEY_MODEL"
+MODERATION_KEY="OPENAI_API_KEY_MODERATION"
+ASSISTANT_ID="ASSISTANT_ID"
+MODEL_MODERATION="omni-moderation-latest"
+ENCODING_BASE="cl100k_base"
+API_KEY="MY_API_KEY_AUTH"
 ```
 
-2. Ejecuta la aplicación con el siguiente comando:
+2. **Construir y ejecutar con Docker Compose:**
 
-```bash
-python app.py
+```sh
+docker-compose up -d
 ```
 
 ## Preguntas frecuentes:
@@ -111,7 +85,7 @@ python app.py
           "type": "text",
           "text": {
             "annotations": [],
-            "value": "Para conectarte al WiFi de la Universidad Católica de Cuenca, necesitarás seleccionar la red WiFi disponible en tu dispositivo y luego introducir la contraseña de acceso. Si no dispones de la contraseña, te recomendaría contactar con el personal de la Dirección de Tecnologías de la Información y Comunicación a través de los canales que han facilitado, como la mesa de ayuda en el correo soporte.ucacue.edu.ec, para solicitar la información detallada sobre la conexión al WiFi institucional."
+            "value": "Texto de respuesta"
           }
         }
       ],
@@ -135,7 +109,7 @@ python app.py
           "type": "text",
           "text": {
             "annotations": [],
-            "value": "Como me conecto al wifi"
+            "value": "Texto de pregunta"
           }
         }
       ],
