@@ -147,16 +147,11 @@ def clean_response(text_response: str) -> str:
     # 1) Eliminar referencias del formato antiguo, si aún las usas
     text_response = re.sub(r'【\d+:\d+†[a-zA-Z]+】', '', text_response)
     
-    # 2) Eliminar referencias nuevas entre \ue200 y \ue201 (non-greedy)
-    #    Esto removerá todo lo que inicie con \ue200 y termine con \ue201,
-    #    incluyendo \ue200cite\ue202turn0file7\ue201, etc.
-    text_response = re.sub(r'\ue200.*?\ue201', '', text_response)
-    
-    # 3) Opcional: eliminar [n] si aparece en la respuesta (ej: [1], [2], etc.)
-    text_response = re.sub(r'\[\d+\]', '', text_response)
-
-    # 4) Normalizar espacios sobrantes
-    text_response = re.sub(r'\s+', ' ', text_response).strip()
+    # 2) Esta expresión elimina:
+    # - Todo el contenido desde \ue200 hasta \ue201 (non-greedy)
+    # - Opcionalmente, una coma, punto y coma o dos puntos que le sigan,
+    # - Y cualquier espacio en blanco que haya después.
+    text_response = re.sub(r'\ue200.*?\ue201[,;:]?\s*', '', text_response)
     
     return text_response
 
