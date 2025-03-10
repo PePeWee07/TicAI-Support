@@ -10,14 +10,15 @@ services:
       - "5000:5000"
     env_file:
       - .env
+    environment:
+      - FLASK_ENV=development  # 🔥 Modo Desarrollo
+    restart: always
     volumes:
-      - IASoporte:/app
+      - .:/app  # 🔥 Bind mount para hot-reload
     networks:
       - virtual_assistant_network
-    command: ["gunicorn", "-b", "0.0.0.0:5000", "app:app", "--reload", "--log-level=debug", "--access-logfile=-", "--error-logfile=-"]
+    command: ["flask", "run", "--host=0.0.0.0", "--port=5000", "--debug", "--reload"]
 
-volumes:
-  IASoporte: 
 networks:
   virtual_assistant_network:
     external: true
