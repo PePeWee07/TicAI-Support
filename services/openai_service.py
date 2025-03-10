@@ -6,7 +6,7 @@ import tiktoken
 import json
 from datetime import datetime
 import re
-
+import time
 
 # ==================================================
 # Carga variables de entorno
@@ -68,7 +68,6 @@ def verify_assistant():
 # ==================================================
 def get_response(assistant_id, ask, thread_id, name_user):
     try:
-        
         thread = get_or_create_thread(thread_id)
         
         client.beta.threads.messages.create(
@@ -80,22 +79,86 @@ def get_response(assistant_id, ask, thread_id, name_user):
         run = client.beta.threads.runs.create_and_poll(
             thread_id=thread.id,
             assistant_id=assistant_id,
-            additional_instructions=(f"Tratamiento del Usuario: Dirigite al usuario utilizando el nombre '{name_user}' en todas tus respuestas.")
-        )  
+            additional_instructions=(f"Tratamiento del Usuario: Dirigite al usuario utilizando el nombre '{name_user}' en tus respuestas.")
+        )
         
+        timestamp_after_tool_call = None
+        
+        # Si el run requiere acción (por ejemplo, para funciones), procesamos todas las tool_calls
+        if run.required_action is not None:
+            tools_to_call = run.required_action.submit_tool_outputs.tool_calls
+            print(f"Número de tool_calls: {len(tools_to_call)}")
+            tools_output_array = []
+            for tool_call in tools_to_call:
+                print(f"Tool call id: {tool_call.id}")
+                print(f"Función: {tool_call.function.name}")
+                print(f"Argumentos: {tool_call.function.arguments}")
+                # Aquí podrías ejecutar la función real. En este ejemplo se envía 'True'
+                tools_output_array.append({
+                    "tool_call_id": tool_call.id,
+                    "output": "True"
+                })
+            print("Enviando outputs:", tools_output_array)
+            run = client.beta.threads.runs.submit_tool_outputs(
+                thread_id=thread.id, 
+                run_id=run.id, 
+                tool_outputs=tools_output_array
+            )
+            print(f"Estado tras enviar outputs: {run.status}")
+            
+            timestamp_after_tool_call = time.time()
+            
+            # Espera a que el run se complete o falle
+            while run.status not in ['completed', 'failed']:
+                run = client.beta.threads.runs.retrieve(
+                    thread_id=thread.id,
+                    run_id=run.id
+                )
+                print(f"Estado del run: {run.status}")
+                time.sleep(10)
+                
         if run.status == 'completed':
             messages = client.beta.threads.messages.list(thread_id=thread.id)
-            for msg in messages.data:
-                if msg.role == 'assistant':
-                    text_response = msg.content[0].text.value
-                    cleaned_response = re.sub(r'【\d+:\d+†[a-zA-Z]+】', '', text_response)
-                    return cleaned_response, thread.id
+            # Filtrar sólo los mensajes del asistente que tengan contenido
+            if timestamp_after_tool_call:
+                assistant_messages = [
+                    msg for msg in messages.data
+                    if msg.role == 'assistant' and msg.content and msg.created_at > timestamp_after_tool_call
+                ]
+            else:
+                assistant_messages = [msg for msg in messages.data if msg.role == 'assistant' and msg.content]
+            if assistant_messages:
+                # Seleccionar el mensaje con la marca de tiempo más reciente (la respuesta final)
+                final_message = max(assistant_messages, key=lambda m: m.created_at)
+                text_response = final_message.content[0].text.value
+                clean_message = clean_response(text_response)
+                return clean_message, thread.id
+            else:
+                return "No se encontró respuesta del asistente.", thread.id
         else:
             return f"La ejecución no se completó correctamente. Estado: {run.status}", thread.id
+
     except ValueError as e:
         raise ValueError(e)
     except Exception as e:
         raise RuntimeError(e)
+    
+def clean_response(text_response: str) -> str:
+    # 1) Eliminar referencias del formato antiguo, si aún las usas
+    text_response = re.sub(r'【\d+:\d+†[a-zA-Z]+】', '', text_response)
+    
+    # 2) Eliminar referencias nuevas entre \ue200 y \ue201 (non-greedy)
+    #    Esto removerá todo lo que inicie con \ue200 y termine con \ue201,
+    #    incluyendo \ue200cite\ue202turn0file7\ue201, etc.
+    text_response = re.sub(r'\ue200.*?\ue201', '', text_response)
+    
+    # 3) Opcional: eliminar [n] si aparece en la respuesta (ej: [1], [2], etc.)
+    text_response = re.sub(r'\[\d+\]', '', text_response)
+
+    # 4) Normalizar espacios sobrantes
+    text_response = re.sub(r'\s+', ' ', text_response).strip()
+    
+    return text_response
 
 
 # ==================================================
