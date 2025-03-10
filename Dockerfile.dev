@@ -10,11 +10,17 @@ COPY requirements.txt /app/requirements.txt
 # Instala las dependencias
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Instala dependencias adicionales para desarrollo
+RUN pip install flask watchdog
+
+
+ENV PYTHONUNBUFFERED=1
+
 # Copia el resto del código fuente
 COPY . /app
 
 # Expone el puerto 5000
 EXPOSE 5000
 
-# Comando para desarrollo (Gunicorn con autorecarga)
-CMD ["gunicorn", "-b", "0.0.0.0:5000", "app:app", "--reload", "--log-level=debug", "--access-logfile=-", "--error-logfile=-"]
+# Comando para desarrollo (Flask con hot-reload)
+CMD ["flask", "run", "--host=0.0.0.0", "--port=5000", "--debug"]

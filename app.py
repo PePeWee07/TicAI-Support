@@ -7,7 +7,9 @@ import atexit
 
 app = Flask(__name__)
 
-logger.info("Iniciando Servicio...")
+ENV_MODE = os.getenv("FLASK_ENV", "production")
+
+logger.info("Servicio Iniciado...")
 
 # ==================================================
 # Verificar si se ha configurado el token de OpenAI
@@ -139,10 +141,14 @@ def clean_up():
 atexit.register(clean_up)
 
 
-# if __name__ == '__main__':
-#     app.run(
-#     host="0.0.0.0", 
-#     port=5000, 
-#     debug=False, 
-#     threaded=True
-# )
+if __name__ == '__main__':
+    if ENV_MODE == "development":
+        print("🚀 Modo Desarrollo: Activando Flask Debug Server con Hot Reload")
+        app.run(
+            host="0.0.0.0", 
+            port=5000, 
+            debug=True,
+            threaded=True
+        )
+    else:
+        print("🚀 Modo Producción: Usando Gunicorn")
