@@ -4,12 +4,19 @@ from services.utils import moderation_required, validate_token_limit
 from config.logging_config import logger
 import os
 import atexit
+from tools.loader import load_tools_from_folder
 
 app = Flask(__name__)
 
 ENV_MODE = os.getenv("FLASK_ENV", "production")
 
 logger.info("Servicio Iniciado...")
+
+# ==================================================
+# Cargar funciones de herramientas
+# ==================================================
+load_tools_from_folder("src/tools")
+
 
 # ==================================================
 # Verificar si se ha configurado el token de OpenAI
@@ -23,7 +30,6 @@ def require_api_key(f):
         return f(*args, **kwargs)
     wrapper.__name__ = f.__name__  
     return wrapper
-
 
 # ==================================================
 # Inicializar el asistente

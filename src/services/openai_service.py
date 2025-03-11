@@ -7,6 +7,7 @@ import json
 from datetime import datetime
 import re
 import time
+from tools.registry import function_registry
 
 # ==================================================
 # Carga variables de entorno
@@ -94,10 +95,34 @@ def get_response(assistant_id, ask, thread_id, name_user):
                 print(f"Función: {tool_call.function.name}")
                 print(f"Argumentos: {tool_call.function.arguments}")
                 
+                #! Ejecucion de la funcion
+                func_id = tool_call.function.name
+                args = tool_call.function.arguments
+                func = function_registry.get(func_id)
+                output = None
+                # Convertir los argumentos a un diccionario si vienen como cadena
+                if isinstance(args, str):
+                    try:
+                        args = json.loads(args)
+                    except Exception as e:
+                        print(f"Error al parsear argumentos: {e}")
+                        args = {}
+                
+                if func:
+                    try:
+                        output = func(**args)
+                        print(f"Función '{func_id}' ejecutada correctamente, valor {output}.")
+                    except Exception as e:
+                        print(f"Error al ejecutar la función '{func_id}': {e}")
+                        output = "False"
+                else:
+                    print(f"Función '{func_id}' no encontrada.")
+                    output = "False"
+                
                 # Aquí podrías ejecutar la función real. En este ejemplo se envía 'True'
                 tools_output_array.append({
                     "tool_call_id": tool_call.id,
-                    "output": "True"
+                    "output": output
                 })
                 
             print("Enviando outputs:", tools_output_array)
@@ -108,8 +133,6 @@ def get_response(assistant_id, ask, thread_id, name_user):
                 tool_outputs=tools_output_array
             )
             print(f"Estado tras enviar outputs: {run.status}")
-            
-            timestamp_after_tool_call = time.time()
             
             # Espera a que el run se complete o falle
             while run.status not in ['completed', 'failed']:
@@ -137,17 +160,9 @@ def get_response(assistant_id, ask, thread_id, name_user):
         raise ValueError(e)
     except Exception as e:
         raise RuntimeError(e)
-    
 def clean_response(text_response: str) -> str:
-    # 1) Eliminar referencias del formato antiguo, si aún las usas
     text_response = re.sub(r'【\d+:\d+†[a-zA-Z]+】', '', text_response)
-    
-    # 2) Esta expresión elimina:
-    # - Todo el contenido desde \ue200 hasta \ue201 (non-greedy)
-    # - Opcionalmente, una coma, punto y coma o dos puntos que le sigan,
-    # - Y cualquier espacio en blanco que haya después.
     text_response = re.sub(r'\ue200.*?\ue201[,;:]?\s*', '', text_response)
-    
     return text_response
 
 
