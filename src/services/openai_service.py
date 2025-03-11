@@ -82,8 +82,6 @@ def get_response(assistant_id, ask, thread_id, name_user):
             additional_instructions=(f"Tratamiento del Usuario: Dirigite al usuario utilizando el nombre '{name_user}' en tus respuestas.")
         )
         
-        timestamp_after_tool_call = None
-        
         # REQUIERE UNA ACCION
         if run.required_action is not None:
             tools_to_call = run.required_action.submit_tool_outputs.tool_calls
@@ -124,16 +122,8 @@ def get_response(assistant_id, ask, thread_id, name_user):
                 
         if run.status == 'completed':
             messages = client.beta.threads.messages.list(thread_id=thread.id)
-            # Filtrar sólo los mensajes del asistente que tengan contenido
-            if timestamp_after_tool_call:
-                assistant_messages = [
-                    msg for msg in messages.data
-                    if msg.role == 'assistant' and msg.content and msg.created_at > timestamp_after_tool_call
-                ]
-            else:
-                assistant_messages = [msg for msg in messages.data if msg.role == 'assistant' and msg.content]
+            assistant_messages = [msg for msg in messages.data if msg.role == 'assistant' and msg.content]
             if assistant_messages:
-                # Seleccionar el mensaje con la marca de tiempo más reciente (la respuesta final)
                 final_message = max(assistant_messages, key=lambda m: m.created_at)
                 text_response = final_message.content[0].text.value
                 clean_message = clean_response(text_response)
