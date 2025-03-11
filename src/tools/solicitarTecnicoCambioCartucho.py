@@ -6,4 +6,4 @@ def solicitarTecnicoCambioCartucho(**kwargs):
     Solicita un técnico para cambiar cartuchos de tinta
     """
     # Aquí puedes procesar los argumentos recibidos.
-    return "False"
+    return "True"

@@ -67,6 +67,52 @@ def verify_assistant():
 # ==================================================
 # Obtener respuesta del asistente
 # ==================================================
+def clean_response(text_response: str) -> str:
+    text_response = re.sub(r'【\d+:\d+†[a-zA-Z]+】', '', text_response)
+    text_response = re.sub(r'\ue200.*?\ue201[,;:]?\s*', '', text_response)
+    return text_response
+
+def parse_tool_arguments(args):
+    if isinstance(args, str):
+        try:
+            return json.loads(args)
+        except Exception as e:
+            logger.error(f"Error al parsear los argumentos de la herramienta: {e}")
+            return {}
+    return args
+
+def execute_tool_function(tool_call, function_registry):
+    args = parse_tool_arguments(tool_call.function.arguments)
+    
+    func_id = tool_call.function.name
+    func = function_registry.get(func_id)
+    if func:
+        try:
+            output = func(**args)
+        except Exception as e:
+            output = "False"
+            logger.error(f"Error al ejecutar la función '{func_id}': {e}")
+    else:
+        output = "False"
+        logger.error(f"Función '{func_id}' no encontrada.")
+    
+    return {"tool_call_id": tool_call.id, "output": output}  
+
+def process_required_actions(tools_to_call):
+            
+    print(f"Número de tool_calls: {len(tools_to_call)}") #! Debug
+    
+    tools_output_array = []
+    for tool_call in tools_to_call:
+        
+        print(f"Función: {tool_call.function.name}") #! Debug
+        print(f"Argumentos: {tool_call.function.arguments}") #! Debug
+        
+        tool_output = execute_tool_function(tool_call, function_registry)
+        tools_output_array.append(tool_output)
+    
+    return tools_output_array 
+
 def get_response(assistant_id, ask, thread_id, name_user):
     try:
         thread = get_or_create_thread(thread_id)
@@ -83,65 +129,26 @@ def get_response(assistant_id, ask, thread_id, name_user):
             additional_instructions=(f"Tratamiento del Usuario: Dirigite al usuario utilizando el nombre '{name_user}' en tus respuestas.")
         )
         
-        # REQUIERE UNA ACCION
+        #! REQUIERE UNA ACCION
         if run.required_action is not None:
             tools_to_call = run.required_action.submit_tool_outputs.tool_calls
+            tools_output_array = process_required_actions(tools_to_call)
             
-            print(f"Número de tool_calls: {len(tools_to_call)}")
-            
-            tools_output_array = []
-            for tool_call in tools_to_call:
-                
-                print(f"Función: {tool_call.function.name}")
-                print(f"Argumentos: {tool_call.function.arguments}")
-                
-                #! Ejecucion de la funcion
-                func_id = tool_call.function.name
-                args = tool_call.function.arguments
-                func = function_registry.get(func_id)
-                output = None
-                # Convertir los argumentos a un diccionario si vienen como cadena
-                if isinstance(args, str):
-                    try:
-                        args = json.loads(args)
-                    except Exception as e:
-                        print(f"Error al parsear argumentos: {e}")
-                        args = {}
-                
-                if func:
-                    try:
-                        output = func(**args)
-                        print(f"Función '{func_id}' ejecutada correctamente, valor {output}.")
-                    except Exception as e:
-                        print(f"Error al ejecutar la función '{func_id}': {e}")
-                        output = "False"
-                else:
-                    print(f"Función '{func_id}' no encontrada.")
-                    output = "False"
-                
-                # Aquí podrías ejecutar la función real. En este ejemplo se envía 'True'
-                tools_output_array.append({
-                    "tool_call_id": tool_call.id,
-                    "output": output
-                })
-                
-            print("Enviando outputs:", tools_output_array)
-            
+            print("Enviando outputs:", tools_output_array) #! Debug
+    
             run = client.beta.threads.runs.submit_tool_outputs(
                 thread_id=thread.id, 
                 run_id=run.id, 
                 tool_outputs=tools_output_array
             )
-            print(f"Estado tras enviar outputs: {run.status}")
-            
+    
             # Espera a que el run se complete o falle
             while run.status not in ['completed', 'failed']:
                 run = client.beta.threads.runs.retrieve(
                     thread_id=thread.id,
                     run_id=run.id
                 )
-                print(f"Estado del run: {run.status}")
-                time.sleep(10)
+                time.sleep(5)
                 
         if run.status == 'completed':
             messages = client.beta.threads.messages.list(thread_id=thread.id)
@@ -160,11 +167,7 @@ def get_response(assistant_id, ask, thread_id, name_user):
         raise ValueError(e)
     except Exception as e:
         raise RuntimeError(e)
-def clean_response(text_response: str) -> str:
-    text_response = re.sub(r'【\d+:\d+†[a-zA-Z]+】', '', text_response)
-    text_response = re.sub(r'\ue200.*?\ue201[,;:]?\s*', '', text_response)
-    return text_response
-
+    
 
 # ==================================================
 # Modelo de moderación de texto
