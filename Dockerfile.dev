@@ -9,11 +9,9 @@ COPY requirements.txt /app/requirements.txt
 
 # Instala las dependencias
 RUN pip install --no-cache-dir -r requirements.txt
-
-# Instala dependencias adicionales para desarrollo
 RUN pip install flask watchdog
 
-
+ENV FLASK_APP=src/app.py
 ENV PYTHONUNBUFFERED=1
 
 # Copia el resto del código fuente

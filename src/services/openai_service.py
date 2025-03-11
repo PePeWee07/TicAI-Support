@@ -84,21 +84,26 @@ def get_response(assistant_id, ask, thread_id, name_user):
         
         timestamp_after_tool_call = None
         
-        # Si el run requiere acción (por ejemplo, para funciones), procesamos todas las tool_calls
+        # REQUIERE UNA ACCION
         if run.required_action is not None:
             tools_to_call = run.required_action.submit_tool_outputs.tool_calls
+            
             print(f"Número de tool_calls: {len(tools_to_call)}")
+            
             tools_output_array = []
             for tool_call in tools_to_call:
-                print(f"Tool call id: {tool_call.id}")
+                
                 print(f"Función: {tool_call.function.name}")
                 print(f"Argumentos: {tool_call.function.arguments}")
+                
                 # Aquí podrías ejecutar la función real. En este ejemplo se envía 'True'
                 tools_output_array.append({
                     "tool_call_id": tool_call.id,
                     "output": "True"
                 })
+                
             print("Enviando outputs:", tools_output_array)
+            
             run = client.beta.threads.runs.submit_tool_outputs(
                 thread_id=thread.id, 
                 run_id=run.id, 
