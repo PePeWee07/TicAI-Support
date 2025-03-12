@@ -7,6 +7,5 @@ def register_function(func_id):
     """
     def decorator(func):
         function_registry[func_id] = func
-        print(f"Registrando función: {func_id}") #! Debug
         return func
     return decorator

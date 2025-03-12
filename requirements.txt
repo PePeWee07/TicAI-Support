@@ -4,3 +4,4 @@ openai
 tiktoken
 pytz
 gunicorn
+requests

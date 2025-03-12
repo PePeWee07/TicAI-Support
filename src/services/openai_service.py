@@ -8,11 +8,11 @@ from datetime import datetime
 import re
 import time
 from tools.registry import function_registry
+from config.logging_config import logger
 
 # ==================================================
 # Carga variables de entorno
 # ==================================================
-from config.logging_config import logger
 
 load_dotenv(override=True)
 OpenAI_key = os.getenv("GPT_TICS_KEY")
@@ -81,8 +81,12 @@ def parse_tool_arguments(args):
             return {}
     return args
 
-def execute_tool_function(tool_call, function_registry):
+def execute_tool_function(tool_call, function_registry, phone, name):
     args = parse_tool_arguments(tool_call.function.arguments)
+    
+    if phone and name is not None:
+        args.setdefault("phoneUser", phone)
+        args.setdefault("nameUser", name)
     
     func_id = tool_call.function.name
     func = function_registry.get(func_id)
@@ -98,7 +102,7 @@ def execute_tool_function(tool_call, function_registry):
     
     return {"tool_call_id": tool_call.id, "output": output}  
 
-def process_required_actions(tools_to_call):
+def process_required_actions(tools_to_call, phone, name):
             
     print(f"Número de tool_calls: {len(tools_to_call)}") #! Debug
     
@@ -108,12 +112,12 @@ def process_required_actions(tools_to_call):
         print(f"Función: {tool_call.function.name}") #! Debug
         print(f"Argumentos: {tool_call.function.arguments}") #! Debug
         
-        tool_output = execute_tool_function(tool_call, function_registry)
+        tool_output = execute_tool_function(tool_call, function_registry, phone, name)
         tools_output_array.append(tool_output)
     
     return tools_output_array 
 
-def get_response(assistant_id, ask, thread_id, name_user):
+def get_response(assistant_id, ask, name, phone , thread_id):
     try:
         thread = get_or_create_thread(thread_id)
         
@@ -126,13 +130,13 @@ def get_response(assistant_id, ask, thread_id, name_user):
         run = client.beta.threads.runs.create_and_poll(
             thread_id=thread.id,
             assistant_id=assistant_id,
-            additional_instructions=(f"Tratamiento del Usuario: Dirigite al usuario utilizando el nombre '{name_user}' en tus respuestas.")
+            additional_instructions=(f"Tratamiento del Usuario: Dirigite al usuario utilizando el nombre '{name}' en tus respuestas.")
         )
         
         #! REQUIERE UNA ACCION
         if run.required_action is not None:
             tools_to_call = run.required_action.submit_tool_outputs.tool_calls
-            tools_output_array = process_required_actions(tools_to_call)
+            tools_output_array = process_required_actions(tools_to_call, phone, name)
             
             print("Enviando outputs:", tools_output_array) #! Debug
     

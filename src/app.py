@@ -50,8 +50,9 @@ def process_user_input():
 
     data = request.json
     ask = data.get('ask')
-    thread_id = data.get('thread_id')
     name = data.get('name')
+    phone = data.get('phone')
+    thread_id = data.get('thread_id')
 
     if not ask:
         return jsonify({"error": "Se requiere una pregunta."}), 400
@@ -59,7 +60,7 @@ def process_user_input():
         return jsonify({"error": "Se requiere un nombre."}), 400
 
     try:
-        answer, thread_id = openai_service.get_response(assistant.id, ask, thread_id, name)
+        answer, thread_id = openai_service.get_response(assistant.id, ask, name, phone, thread_id)
         return jsonify({"answer": answer, "thread_id": thread_id}), 200
     except ValueError as e:
         logger.error(f"Error al obtener respuesta: {e}")
