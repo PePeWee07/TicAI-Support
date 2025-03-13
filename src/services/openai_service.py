@@ -118,7 +118,7 @@ def process_required_actions(tools_to_call, phone, name):
     
     return tools_output_array 
 
-def get_response(assistant_id, ask, name, phone , thread_id):
+def get_response(assistant_id, ask, name, phone, thread_id):
     try:
         thread = get_or_create_thread(thread_id)
         
@@ -131,33 +131,33 @@ def get_response(assistant_id, ask, name, phone , thread_id):
         run = client.beta.threads.runs.create_and_poll(
             thread_id=thread.id,
             assistant_id=assistant_id,
-            additional_instructions=(f"Tratamiento del Usuario: Dirigite al usuario utilizando el nombre '{name}' en tus respuestas."),
+            additional_instructions=(
+                f"Tratamiento del Usuario: Dirigite al usuario utilizando el nombre '{name}' en tus respuestas."
+            ),
             parallel_tool_calls=True
         )
-        
-        #! REQUIERE UNA ACCION
-        if run.required_action is not None:
-            tools_to_call = run.required_action.submit_tool_outputs.tool_calls
-            pprint.pprint(run) #! Debug
-            
-            tools_output_array = process_required_actions(tools_to_call, phone, name)
-            
-            print("Enviando outputs:", tools_output_array) #! Debug
-    
-            run = client.beta.threads.runs.submit_tool_outputs(
-                thread_id=thread.id, 
-                run_id=run.id, 
-                tool_outputs=tools_output_array
-            )
-    
-            # Espera a que el run se complete o falle
-            while run.status not in ['completed', 'failed']:
-                run = client.beta.threads.runs.retrieve(
+
+        while run.status not in ['completed', 'failed']:
+            if run.required_action is not None:
+                tools_to_call = run.required_action.submit_tool_outputs.tool_calls
+                
+                tools_output_array = process_required_actions(tools_to_call, phone, name)
+                
+                print("Enviando outputs:", tools_output_array)  #! Debug
+                
+                run = client.beta.threads.runs.submit_tool_outputs(
                     thread_id=thread.id,
-                    run_id=run.id
+                    run_id=run.id,
+                    tool_outputs=tools_output_array
                 )
-                time.sleep(5)
-                print(f"Estado del run: {run.status}") #! Debug
+            
+            run = client.beta.threads.runs.retrieve(
+                thread_id=thread.id,
+                run_id=run.id
+            )
+            time.sleep(5)
+            
+            print(f"Estado del run: {run.status}")  #! Debug
                 
         if run.status == 'completed':
             messages = client.beta.threads.messages.list(thread_id=thread.id)
@@ -176,6 +176,7 @@ def get_response(assistant_id, ask, name, phone , thread_id):
         raise ValueError(e)
     except Exception as e:
         raise RuntimeError(e)
+
     
 
 # ==================================================
