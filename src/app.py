@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify
-import services.openai_service as openai_service
+import services.openAIService as openAIService
 from services.utils import moderation_required, validate_token_limit
 from config.logging_config import logger
 import os
@@ -34,7 +34,7 @@ def require_api_key(f):
 # ==================================================
 # Inicializar el asistente
 # ==================================================
-assistant = openai_service.verify_assistant()
+assistant = openAIService.verify_assistant()
     
     
 # ==================================================
@@ -62,7 +62,7 @@ def process_user_input():
         return jsonify({"error": "Se requiere un teléfono."}), 400
 
     try:
-        answer, thread_id = openai_service.get_response(assistant.id, ask, name, phone, thread_id)
+        answer, thread_id = openAIService.get_response(assistant.id, ask, name, phone, thread_id)
         return jsonify({"answer": answer, "thread_id": thread_id}), 200
     except ValueError as e:
         logger.error(f"Error al obtener respuesta: {e}")
@@ -84,7 +84,7 @@ def get_history():
         return jsonify({"error": "Se requiere un thread_id."}), 400
 
     try:
-        history = openai_service.view_history(thread_id)
+        history = openAIService.view_history(thread_id)
         return jsonify({"history": history}), 200
     except ValueError as e:
         logger.error(f"Error al obtener historial: {e}")
@@ -106,7 +106,7 @@ def delete_thread_endpoint():
         return jsonify({"error": "Se requiere un thread_id."}), 400
 
     try:
-        message = openai_service.delete_thread(thread_id)
+        message = openAIService.delete_thread(thread_id)
         return jsonify({"message": message}), 200
     except ValueError as e:
         logger.error(f"Error al eliminar hilo: {e}")
@@ -131,7 +131,7 @@ def delete_threads_endpoint():
         return jsonify({"error": "El campo 'ids' debe ser una lista de strings."}), 400
 
     try:
-        message = openai_service.delete_threads(ids)
+        message = openAIService.delete_threads(ids)
         logger.info(f"Hilos eliminados: {message}")
         return jsonify({"message": message}), 200
     except TypeError as e:

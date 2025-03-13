@@ -1,7 +1,7 @@
 from functools import wraps
 from flask import request, jsonify
-from services.openai_service import moderation_text
-from services.openai_service import num_tokens_from_string
+from services.openAIService import moderation_text
+from services.openAIService import num_tokens_from_string
 
 def moderation_required(f):
     @wraps(f)
