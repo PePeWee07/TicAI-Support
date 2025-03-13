@@ -9,7 +9,6 @@ import re
 import time
 from tools.registry import function_registry
 from config.logging_config import logger
-import pprint #! Debug
 
 # ==================================================
 # Carga variables de entorno
@@ -104,9 +103,6 @@ def execute_tool_function(tool_call, function_registry, phone, name):
     return {"tool_call_id": tool_call.id, "output": output}  
 
 def process_required_actions(tools_to_call, phone, name):
-            
-    print(f"Número de tool_calls: {len(tools_to_call)}") #! Debug
-    
     tools_output_array = []
     for tool_call in tools_to_call:
         
@@ -132,7 +128,7 @@ def get_response(assistant_id, ask, name, phone, thread_id):
             thread_id=thread.id,
             assistant_id=assistant_id,
             additional_instructions=(
-                f"Tratamiento del Usuario: Dirigite al usuario utilizando el nombre '{name}' en tus respuestas."
+                f"El nombre del usuario es '{name}'. Usa esta información de contexto, pero no es necesario que lo menciones en cada respuesta."
             ),
             parallel_tool_calls=True
         )
@@ -142,8 +138,6 @@ def get_response(assistant_id, ask, name, phone, thread_id):
                 tools_to_call = run.required_action.submit_tool_outputs.tool_calls
                 
                 tools_output_array = process_required_actions(tools_to_call, phone, name)
-                
-                print("Enviando outputs:", tools_output_array)  #! Debug
                 
                 run = client.beta.threads.runs.submit_tool_outputs(
                     thread_id=thread.id,
@@ -177,7 +171,6 @@ def get_response(assistant_id, ask, name, phone, thread_id):
     except Exception as e:
         raise RuntimeError(e)
 
-    
 
 # ==================================================
 # Modelo de moderación de texto

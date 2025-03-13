@@ -29,9 +29,6 @@ def solicitarTecnicoCambioCartucho(**kwargs):
     tipoImpresora = kwargs.get("tipoImpresora", "No especificado")
     ubicacion = kwargs.get("ubicacion")
     
-    for key, value in kwargs.items():
-        print(f"{key}: {value}")
-    
     mensaje_text = (
         f"Se solicita intervención técnica inmediata para cambio de cartucho de tinta. \n"
         f"Usuario: *{nameUser}* \n"

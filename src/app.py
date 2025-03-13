@@ -58,6 +58,8 @@ def process_user_input():
         return jsonify({"error": "Se requiere una pregunta."}), 400
     if not name:
         return jsonify({"error": "Se requiere un nombre."}), 400
+    if not phone:
+        return jsonify({"error": "Se requiere un teléfono."}), 400
 
     try:
         answer, thread_id = openai_service.get_response(assistant.id, ask, name, phone, thread_id)
