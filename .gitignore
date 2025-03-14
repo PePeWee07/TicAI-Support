@@ -3,4 +3,3 @@ __pycache__/
 .env
 logs/
 *.log
-src/services/senEmail.py
