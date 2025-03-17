@@ -1,8 +1,10 @@
 from tools.registry import register_function
 import requests
 import os
-from models.sendMessageToWhatsapp import WhatsAppMessage
+from models.sendMessageToWhatsappDto import WhatsAppMessage
+from models.sendEmailDto import EmailMessage
 from config.logging_config import logger
+import services.senEmail as ServiceEmail
 
 url = os.getenv("URL_BACKEND")
 header = os.getenv("API_KEY_HEADER")
@@ -22,6 +24,7 @@ def solicitarTecnicoCambioCartucho(**kwargs):
     - tipoImpresora: modelo de impresora (Opcional)
     - ubicacion: Dirección del solicitante 
     """
+    # PARAMETROS
     phoneTecnico = "593983439289"
     phoneUser = kwargs.get("phoneUser")
     nameUser = kwargs.get("nameUser")
@@ -29,20 +32,12 @@ def solicitarTecnicoCambioCartucho(**kwargs):
     tipoImpresora = kwargs.get("tipoImpresora", "No especificado")
     ubicacion = kwargs.get("ubicacion")
     
-    mensaje_text = (
-        f"Se solicita intervención técnica inmediata para cambio de cartucho de tinta. \n"
-        f"Usuario: *{nameUser}* \n"
-        f"Telefono del solicitante: *{phoneUser}* \n"
-        f"Color: *{colorCartucho}* \n"
-        f"Modelo impresora: *{tipoImpresora}* \n"
-        f"Ubicación: *{ubicacion}* \n"
-        f"Por favor, coordinar asistencia técnica."
-    )
-    
     mensaje = WhatsAppMessage( 
         number=phoneTecnico, 
-        message=mensaje_text
-    ) 
+        message=sendWhatsAppMessage(nameUser, phoneUser, colorCartucho, tipoImpresora, ubicacion)
+    )
+    
+    sendEmailuser()
     
     try:
         headers = {header: apiKey}
@@ -60,3 +55,37 @@ def solicitarTecnicoCambioCartucho(**kwargs):
     except Exception as e:
         logger.error(f"Excepción al enviar el mensaje: {e}")
         return "False"
+
+# ==================================================
+# MENSAJE DE TEXTO
+# ==================================================
+def sendWhatsAppMessage(nameUser, phoneUser, colorCartucho, tipoImpresora, ubicacion):
+    mensajeText = (
+        f"Se solicita intervención técnica inmediata para cambio de cartucho de tinta. \n"
+        f"Usuario: *{nameUser}* \n"
+        f"Telefono del solicitante: *{phoneUser}* \n"
+        f"Color: *{colorCartucho}* \n"
+        f"Modelo impresora: *{tipoImpresora}* \n"
+        f"Ubicación: *{ubicacion}* \n"
+        f"Por favor, coordinar asistencia técnica."
+    )
+    return mensajeText
+  
+  
+# ==================================================
+# ENVIO DE EMAIL
+# ==================================================
+def sendEmailuser():
+    email_data = EmailMessage(
+        fromEmail=None,
+        to=["pepewee07@gmail.com"],
+        cc=["pepewee070@yopmail.com"],
+        bcc=["pepewee071@yopmail.com"],
+        subject="Prueba de envío",
+        body="<h1>Hola, este es un correo de prueba para Asistente Virtual</h1>",
+        html=True,
+        attachments=["src/docs/albiononline-key.pdf", "src/docs/ucacue-logo-centro-mediacion.png"]
+    )
+    
+    res = ServiceEmail.sendEmail(email_data)
+    print("RESPUESTA EMAIL: ",res)

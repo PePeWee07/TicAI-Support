@@ -5,3 +5,4 @@ tiktoken
 pytz
 gunicorn
 requests
+pydantic[email]
