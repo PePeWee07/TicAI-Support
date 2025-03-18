@@ -9,6 +9,7 @@ import re
 import time
 from tools.registry import function_registry
 from config.logging_config import logger
+import pprint
 
 # ==================================================
 # Carga variables de entorno
@@ -19,6 +20,7 @@ OpenAI_key = os.getenv("GPT_TICS_KEY")
 Moderation_Key = os.getenv("MODERATION_KEY")
 model_moderation = os.getenv("MODEL_MODERATION")
 encoding_base = os.getenv("ENCODING_BASE")
+restricted_roles_functions = os.getenv("RESTRICTED_ROLES_FUNCTIONS")
 
 if not  OpenAI_key :
     logger.error("La Api_key 'GPT_TICS_KEY' de OpenAI no está configura en la variables de entorno.")
@@ -102,19 +104,26 @@ def execute_tool_function(tool_call, function_registry, phone, name):
     
     return {"tool_call_id": tool_call.id, "output": output}  
 
-def process_required_actions(tools_to_call, phone, name):
+def process_required_action(tools_to_call, phone, name, restricted):
     tools_output_array = []
     for tool_call in tools_to_call:
-        
-        print(f"Función: {tool_call.function.name}") #! Debug
-        print(f"Argumentos: {tool_call.function.arguments}") #! Debug
-        
-        tool_output = execute_tool_function(tool_call, function_registry, phone, name)
-        tools_output_array.append(tool_output)
-    
-    return tools_output_array 
+        if restricted:
+            print(f"Función Denegada: {tool_call.function.name}")  #! Debug
+            
+            tools_output_array.append({
+                "tool_call_id": tool_call.id,
+                "output": "False"
+            })
+        else:
+            print(f"Procesando función: {tool_call.function.name}")  #! Debug
+            print(f"Argumentos: {tool_call.function.arguments}")  #! Debug
+            
+            tool_output = execute_tool_function(tool_call, function_registry, phone, name)
+            tools_output_array.append(tool_output)
+    return tools_output_array
 
-def get_response(assistant_id, ask, name, phone, thread_id):
+
+def get_response(assistant_id, ask, name, phone, rol, thread_id):
     try:
         thread = get_or_create_thread(thread_id)
         
@@ -132,12 +141,17 @@ def get_response(assistant_id, ask, name, phone, thread_id):
             ),
             parallel_tool_calls=True
         )
+        
+        pprint.pprint(run)  #! Debug
 
         while run.status not in ['completed', 'failed']:
             if run.required_action is not None:
                 tools_to_call = run.required_action.submit_tool_outputs.tool_calls
                 
-                tools_output_array = process_required_actions(tools_to_call, phone, name)
+                if rol in restricted_roles_functions:
+                    tools_output_array = process_required_action(tools_to_call, phone, name, restricted=True)
+                else:
+                    tools_output_array = process_required_action(tools_to_call, phone, name, restricted=False)
                 
                 run = client.beta.threads.runs.submit_tool_outputs(
                     thread_id=thread.id,

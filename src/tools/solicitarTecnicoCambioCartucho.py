@@ -37,7 +37,7 @@ def solicitarTecnicoCambioCartucho(**kwargs):
         message=sendWhatsAppMessage(nameUser, phoneUser, colorCartucho, tipoImpresora, ubicacion)
     )
     
-    sendEmailuser()
+    # sendEmailuser()
     
     try:
         headers = {header: apiKey}

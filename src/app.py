@@ -52,6 +52,7 @@ def process_user_input():
     ask = data.get('ask')
     name = data.get('name')
     phone = data.get('phone')
+    rol = data.get('rol')
     thread_id = data.get('thread_id')
 
     if not ask:
@@ -60,9 +61,12 @@ def process_user_input():
         return jsonify({"error": "Se requiere un nombre."}), 400
     if not phone:
         return jsonify({"error": "Se requiere un teléfono."}), 400
+    if not rol:
+        return jsonify({"error": "Se requiere un rol."}), 400
 
     try:
-        answer, thread_id = openAIService.get_response(assistant.id, ask, name, phone, thread_id)
+        print(f"Datos recibidos: ask={ask}, name={name}, phone={phone}, rol={rol}, thread_id={thread_id}") #! Debug
+        answer, thread_id = openAIService.get_response(assistant.id, ask, name, phone, rol, thread_id)
         return jsonify({"answer": answer, "thread_id": thread_id}), 200
     except ValueError as e:
         logger.error(f"Error al obtener respuesta: {e}")
