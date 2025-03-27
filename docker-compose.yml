@@ -3,13 +3,14 @@ version: "3.9"
 services:
   ia-soporte:
     container_name: ia-soporte
-    image: pepewee/soportetic-openia:latest
+    image: pepewee/soportetic-openia:1.1.0-beta
     ports:
       - "5000:5000"
     env_file:
       - .env
     environment:
       - FLASK_ENV=production  # 🔥 Modo Producción
+      - PYTHONPATH=/app/src
     restart: always
     volumes:
       - IA_Logs:/app/logs
