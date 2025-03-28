@@ -5,6 +5,8 @@ from config.logging_config import logger
 import os
 import atexit
 from tools.loader import load_tools_from_folder
+import datetime
+import pytz
 
 app = Flask(__name__)
 
@@ -145,6 +147,20 @@ def delete_threads_endpoint():
         logger.error(f"Error inesperado al eliminar hilos: {e}")
         return jsonify({"error": {e}}), 500
 
+
+# ==================================================
+# Healthcheck
+# ==================================================
+@app.route('/health', methods=['GET'])
+def health_check():
+    now_date = datetime.datetime.now(pytz.timezone('America/Guayaquil'))
+    formatted_time = now_date.strftime('%-m/%-d/%Y, %-I:%M:%S %p')
+    return jsonify({
+        "status": "ok",
+        "message": "API is running.",
+        "timestamp": formatted_time
+    }), 200
+    
 
 # ==================================================
 # Cerrar recursos al salir

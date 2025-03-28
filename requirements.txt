@@ -6,3 +6,4 @@ pytz
 gunicorn
 requests
 pydantic[email]
+pytz
