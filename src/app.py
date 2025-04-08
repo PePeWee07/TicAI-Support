@@ -7,8 +7,11 @@ import atexit
 from tools.loader import load_tools_from_folder
 import datetime
 import pytz
+from flask_cors import CORS
 
 app = Flask(__name__)
+
+CORS(app, resources={r"/health": {"origins": "*"}})
 
 ENV_MODE = os.getenv("FLASK_ENV", "production")
 

@@ -7,3 +7,4 @@ gunicorn
 requests
 pydantic[email]
 pytz
+flask-cors
