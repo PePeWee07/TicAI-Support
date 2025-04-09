@@ -48,7 +48,7 @@ pipelines:
                   echo "Pulling image..."
                   docker pull pepewee/soportetic-openia:latest
                   echo "Deploying updated containers..."
-                  cd /data/sites/ia-sp-backoffice.ucatolica.cue.ec/html/back-end
+                  cd /data/sites/ia-sp-backoffice.ucatolica.cue.ec/html/IA
                   docker-compose down
                   docker-compose up -d
                   echo "Deployment complete!"
