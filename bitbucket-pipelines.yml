@@ -6,9 +6,6 @@ pipelines:
           runs-on:
             - self.hosted
             - linux
-          services: [ docker ]
-          caches:
-            - docker
           script:
             - echo "Building & pushing Docker image..."
             - docker build -t pepewee/soportetic-openia:$VERSION .
