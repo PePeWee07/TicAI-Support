@@ -183,19 +183,38 @@ def get_response(assistant_id, ask, name, phone, rol, thread_id):
 # ==================================================
 # Modelo de moderación de texto
 # ==================================================
-def moderation_text(texto):
+UMBRAL_CATEGORIES = {
+    "harassment": 0.47,
+    "harassment/threatening": 0.47,
+    "hate": 0.47,
+    "hate/threatening": 0.47,
+    "illicit": 0.47,
+    "illicit/violent": 0.47,
+    "self-harm": 0.47,
+    "self-harm/instructions": 0.47,
+    "self-harm/intent": 0.47,
+    "sexual": 0.47,
+    "sexual/minors": 0.47,
+    "violence": 0.47,
+    "violence/graphic": 0.47,
+}
+
+def moderation_text(texto, umbrales=UMBRAL_CATEGORIES):
     try:
         response = moderation.moderations.create(
             model=model_moderation,
             input=texto,
         )
+        resp_dict = response.to_dict()
+        scores = resp_dict["results"][0]["category_scores"]
         
-        response_dict = response.to_dict()
-        response_json = json.dumps(response_dict, indent=4)
-        response_data = json.loads(response_json)
-        flagged = response_data["results"][0]["flagged"]
-        
-        return flagged
+        for categoria, umbral in umbrales.items():
+            valor = scores.get(categoria, 0.0)
+            if valor >= umbral:
+                return True
+
+        return False
+    
     except Exception as e:
         raise RuntimeError(e)
     
