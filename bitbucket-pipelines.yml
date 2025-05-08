@@ -4,7 +4,7 @@ pipelines:
   branches:
     main:
       - step:
-          name: Build Docker Image
+          name: Build & Push Docker Image
           runs-on:
             - self.hosted
             - linux
@@ -13,24 +13,13 @@ pipelines:
           caches:
             - docker
           script:
-            - echo "Building Docker Image..."
+            - echo "Building & pushing Docker image..."
             - docker build -t pepewee/soportetic-openia:$VERSION -f Dockerfile .
             - docker tag pepewee/soportetic-openia:$VERSION pepewee/soportetic-openia:latest
-      - step:
-          name: Push Docker Image to Docker Hub
-          runs-on:
-            - self.hosted
-            - linux
-          services:
-            - docker
-          caches:
-            - docker
-          script:
-            - echo "Logging in to Docker Hub..."
             - echo $DOCKER_HUB_TOKEN | docker login -u $DOCKER_HUB_USER --password-stdin
-            - echo "Pushing Image..."
             - docker push pepewee/soportetic-openia:$VERSION
             - docker push pepewee/soportetic-openia:latest
+
       - step:
           name: Deploy to Server
           runs-on:
@@ -40,18 +29,15 @@ pipelines:
             - pipe: atlassian/ssh-run:0.4.3
               variables:
                 SSH_USER: "$SSH_USER"
-                SERVER: "$SSH_HOST"
-                SSH_KEY: "$SSH_KEY"
+                SERVER:   "$SSH_HOST"
+                SSH_KEY:  "$SSH_KEY"
                 COMMAND: |
-                  echo "Logging into Docker Hub on remote server..."
-                  echo $DOCKER_HUB_TOKEN | docker login -u $DOCKER_HUB_USER --password-stdin
-                  echo "Pulling image..."
+                  echo "Pulling latest image on remote..."
                   docker pull pepewee/soportetic-openia:latest
-                  echo "Deploying updated containers..."
                   cd /data/sites/ia-sp-backoffice.ucatolica.cue.ec/html/IA
-                  docker-compose down
-                  docker-compose up -d
+                  docker-compose down && docker-compose up -d
                   echo "Deployment complete!"
+
 definitions:
   services:
     docker:
