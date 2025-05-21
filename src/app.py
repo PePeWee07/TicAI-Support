@@ -12,7 +12,11 @@ from flask_cors import CORS
 app = Flask(__name__)
 # CORS(app, resources={r"/ia/health": {"origins": ["https://ia-sp-webhook.ucatolica.cue.ec", 
 #                                                 "https://ia-sp-backoffice.ucatolica.cue.ec"]}})
-CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
+CORS(app,
+     resources={r"/*": {"origins": "*"}},
+     supports_credentials=True,
+     allow_headers=["Authorization", "Content-Type"])
+
 
 ENV_MODE = os.getenv("FLASK_ENV", "production")
 
