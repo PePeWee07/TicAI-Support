@@ -1,7 +1,9 @@
-from tools.registry import register_function
 import services.senEmail as ServiceEmail
 from models.sendEmailDto import EmailMessage
+from tools.registry import register_function, requires_roles
+from config.logging_config import logger
 
+@requires_roles("send_support_email", ["ADMINISTRATIVO", "ESTUDIANTE"])
 @register_function("send_support_email")
 def send_support_email(**kwargs):
     """
@@ -57,7 +59,12 @@ def send_support_email(**kwargs):
             html=True
         )
         success = ServiceEmail.sendEmail(email_data)  # True/False
-        return str(success)   
+        
+        if success:
+            return "Email enviado con éxito"
+        else:
+            return "No se pudo enviar el email"  
+            
     except Exception as e:
-        print(f"Error sending email: {e}")
-        return "Error sending email"
+        logger.error(f"Error al enviar el email: {e}")
+        return "No se pudo enviar el email debido a un error interno"

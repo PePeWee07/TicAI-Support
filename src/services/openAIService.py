@@ -10,6 +10,7 @@ import time
 from tools.registry import function_registry
 from config.logging_config import logger
 from models.userData import UserData
+from services.permissions import is_globally_restricted
 
 # ==================================================
 # Carga variables de entorno
@@ -20,7 +21,6 @@ OpenAI_key = os.getenv("GPT_TICS_KEY")
 Moderation_Key = os.getenv("MODERATION_KEY")
 model_moderation = os.getenv("MODEL_MODERATION")
 encoding_base = os.getenv("ENCODING_BASE")
-restricted_roles_functions = os.getenv("RESTRICTED_ROLES_FUNCTIONS")
 
 if not  OpenAI_key :
     logger.error("La Api_key 'GPT_TICS_KEY' de OpenAI no está configura en la variables de entorno.")
@@ -38,16 +38,6 @@ if not  encoding_base :
     logger.error("El encoding 'ENCODING_BASE' de TikToken no está configura en las variables de entorno.")
     raise ValueError("El encoding 'ENCODING_BASE' de TikToken no está configura en las variables de entorno.")
 
-if not  restricted_roles_functions :
-    logger.error("Los roles restringidos 'RESTRICTED_ROLES_FUNCTIONS' no están configura en las variables de entorno.")
-    raise ValueError("Los roles restringidos 'RESTRICTED_ROLES_FUNCTIONS' no están configura en las variables de entorno.")
-
-restricted_roles = {
-    item.strip().upper()
-    for item in restricted_roles_functions.split(',')
-    if item.strip()
-}
-print(f"Roles restringidos: {restricted_roles}")  #! Debug
 
 # ==================================================
 # Crear una instancia de OpenAI
@@ -93,9 +83,38 @@ def parse_tool_arguments(args):
             return {}
     return args
 
-def execute_tool_function(tool_call, function_registry, user: UserData):
+def execute_tool_function(tool_call, user: UserData) -> dict:
+    func_id = tool_call.function.name
+    entry = function_registry.get(func_id)
+
+    if entry is None:
+        return {
+            "tool_call_id": tool_call.id,
+            "output": f"Función '{func_id}' no encontrada."
+        }
+
+    func = entry["func"]
+    allowed_roles = entry["allowed_roles"]
+
+    user_roles = {r.strip().upper() for r in user.roles}
+
+    # En caso de no exita nigún rol permitido, denegar acceso
+    if not allowed_roles:
+        return {
+            "tool_call_id": tool_call.id,
+            "output": f"Esta accion no esta permitida para ningún rol."
+        }
+
+    # Verificar si el usuario tiene al menos un rol permitido
+    if user_roles.isdisjoint(allowed_roles):
+        restricted_msg = f"Esta accion no esta permitida para usuarios con rol de {sorted(user_roles)}."
+        print(restricted_msg);  #! Debug
+        return {
+            "tool_call_id": tool_call.id,
+            "output": restricted_msg
+        }
+
     args = parse_tool_arguments(tool_call.function.arguments)
-    
     user_args = {
         "phone": user.phone,
         "names": user.name,
@@ -105,26 +124,23 @@ def execute_tool_function(tool_call, function_registry, user: UserData):
         "emailPersonal": user.emailPersonal,
         "sexo": user.sexo,
     }
-
     for key, val in user_args.items():
         if val is not None:
             args.setdefault(key, val)
-    
-    func_id = tool_call.function.name
-    func = function_registry.get(func_id)
-    if func:
-        try:
-            output = func(**args)
-        except Exception as e:
-            output = "False"
-            logger.error(f"Error al ejecutar la función '{func_id}': {e}")
-    else:
-        output = "False"
-        logger.error(f"Función '{func_id}' no encontrada.")
-    
-    return {"tool_call_id": tool_call.id, "output": output}  
 
-def process_required_action(tools_to_call, user: UserData, restricted):
+    try:
+        output = func(**args)
+    except Exception as e:
+        output = "False"
+        logger.error(f"Error al ejecutar '{func_id}': {e}")
+
+    return {
+        "tool_call_id": tool_call.id,
+        "output": output
+    }
+
+
+def process_required_action(tools_to_call, user: UserData, restricted: bool):
     tools_output_array = []
     for tool_call in tools_to_call:
         if restricted:
@@ -135,7 +151,7 @@ def process_required_action(tools_to_call, user: UserData, restricted):
                 "output": restricted_msg
             })
         else:
-            tool_output = execute_tool_function(tool_call, function_registry, user)
+            tool_output = execute_tool_function(tool_call, user)
             tools_output_array.append(tool_output)
     return tools_output_array
 
@@ -158,22 +174,16 @@ def get_response(assistant_id, user: UserData):
             ),
             parallel_tool_calls=True
         )
-        
-        def is_restricted(roles_list):
-            return all(r in restricted_roles for r in (roles_list or []))
 
         while run.status not in ['completed', 'failed']:
             if run.required_action is not None:
                 tools_to_call = run.required_action.submit_tool_outputs.tool_calls
                 
-                if is_restricted(user.roles):
-                    tools_output_array = process_required_action(
-                        tools_to_call, user, restricted=True
-                    )
-                else:
-                    tools_output_array = process_required_action(
-                        tools_to_call, user, restricted=False
-                    )
+                restricted_global = is_globally_restricted(user.roles)
+                
+                tools_output_array = process_required_action(
+                    tools_to_call, user, restricted_global
+                )
                 
                 run = client.beta.threads.runs.submit_tool_outputs(
                     thread_id=thread.id,
