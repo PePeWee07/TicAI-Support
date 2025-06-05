@@ -9,6 +9,7 @@ import re
 import time
 from tools.registry import function_registry
 from config.logging_config import logger
+from models.userData import UserData
 
 # ==================================================
 # Carga variables de entorno
@@ -37,6 +38,16 @@ if not  encoding_base :
     logger.error("El encoding 'ENCODING_BASE' de TikToken no está configura en las variables de entorno.")
     raise ValueError("El encoding 'ENCODING_BASE' de TikToken no está configura en las variables de entorno.")
 
+if not  restricted_roles_functions :
+    logger.error("Los roles restringidos 'RESTRICTED_ROLES_FUNCTIONS' no están configura en las variables de entorno.")
+    raise ValueError("Los roles restringidos 'RESTRICTED_ROLES_FUNCTIONS' no están configura en las variables de entorno.")
+
+restricted_roles = {
+    item.strip().upper()
+    for item in restricted_roles_functions.split(',')
+    if item.strip()
+}
+print(f"Roles restringidos: {restricted_roles}")  #! Debug
 
 # ==================================================
 # Crear una instancia de OpenAI
@@ -69,7 +80,7 @@ def verify_assistant():
 # Obtener respuesta del asistente
 # ==================================================
 def clean_response(text_response: str) -> str:
-    text_response = re.sub(r'【\d+:\d+†[a-zA-Z]+】', '', text_response)
+    text_response = re.sub(r'【.*?】', '', text_response)
     text_response = re.sub(r'\ue200.*?\ue201[,;:]?\s*', '', text_response)
     return text_response
 
@@ -82,12 +93,22 @@ def parse_tool_arguments(args):
             return {}
     return args
 
-def execute_tool_function(tool_call, function_registry, phone, name):
+def execute_tool_function(tool_call, function_registry, user: UserData):
     args = parse_tool_arguments(tool_call.function.arguments)
     
-    if phone and name is not None:
-        args.setdefault("phoneUser", phone)
-        args.setdefault("nameUser", name)
+    user_args = {
+        "phone": user.phone,
+        "names": user.name,
+        "roles": user.roles,
+        "identificacion": user.identificacion,
+        "emailInstitucional": user.emailInstitucional,
+        "emailPersonal": user.emailPersonal,
+        "sexo": user.sexo,
+    }
+
+    for key, val in user_args.items():
+        if val is not None:
+            args.setdefault(key, val)
     
     func_id = tool_call.function.name
     func = function_registry.get(func_id)
@@ -103,49 +124,56 @@ def execute_tool_function(tool_call, function_registry, phone, name):
     
     return {"tool_call_id": tool_call.id, "output": output}  
 
-def process_required_action(tools_to_call, phone, name, rol, restricted):
+def process_required_action(tools_to_call, user: UserData, restricted):
     tools_output_array = []
     for tool_call in tools_to_call:
         if restricted:
-            restricted_msg = f"Esta accion no esta permitida para usuarios con rol de {rol}."
+            restricted_msg = f"Esta accion no esta permitida para usuarios con rol de {user.roles}."
             print(restricted_msg);  #! Debug
             tools_output_array.append({
                 "tool_call_id": tool_call.id,
                 "output": restricted_msg
             })
         else:
-            tool_output = execute_tool_function(tool_call, function_registry, phone, name)
+            tool_output = execute_tool_function(tool_call, function_registry, user)
             tools_output_array.append(tool_output)
     return tools_output_array
 
-
-def get_response(assistant_id, ask, name, phone, rol, thread_id):
+def get_response(assistant_id, user: UserData):
     try:
-        thread = get_or_create_thread(thread_id)
+        print(f"Datos recibidos: {user}")  #! Debug
+        thread = get_or_create_thread(user.thread_id)
         
         client.beta.threads.messages.create(
             thread_id=thread.id,
             role="user",
-            content=ask
+            content=user.ask
         )
         
         run = client.beta.threads.runs.create_and_poll(
             thread_id=thread.id,
             assistant_id=assistant_id,
             additional_instructions=(
-                f"El nombre del usuario es '{name}'. Usa esta información de contexto, pero no es necesario que lo menciones en cada respuesta."
+                f"El nombre del usuario es '{user.name}'. Usa esta información de contexto."
             ),
             parallel_tool_calls=True
         )
+        
+        def is_restricted(roles_list):
+            return all(r in restricted_roles for r in (roles_list or []))
 
         while run.status not in ['completed', 'failed']:
             if run.required_action is not None:
                 tools_to_call = run.required_action.submit_tool_outputs.tool_calls
                 
-                if rol in restricted_roles_functions:
-                    tools_output_array = process_required_action(tools_to_call, phone, name, rol, restricted=True)
+                if is_restricted(user.roles):
+                    tools_output_array = process_required_action(
+                        tools_to_call, user, restricted=True
+                    )
                 else:
-                    tools_output_array = process_required_action(tools_to_call, phone, name, rol, restricted=False)
+                    tools_output_array = process_required_action(
+                        tools_to_call, user, restricted=False
+                    )
                 
                 run = client.beta.threads.runs.submit_tool_outputs(
                     thread_id=thread.id,

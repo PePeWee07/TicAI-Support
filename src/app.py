@@ -8,15 +8,12 @@ from tools.loader import load_tools_from_folder
 import datetime
 import pytz
 from flask_cors import CORS
+from models.userData import UserData
+from pydantic import ValidationError
 
 app = Flask(__name__)
-# CORS(app, resources={r"/ia/health": {"origins": ["https://ia-sp-webhook.ucatolica.cue.ec", 
-#                                                 "https://ia-sp-backoffice.ucatolica.cue.ec"]}})
-CORS(app,
-     resources={r"/*": {"origins": "*"}},
-     supports_credentials=True,
-     allow_headers=["Authorization", "Content-Type"])
-
+# CORS(app, resources={r"/ia/health": {"origins": ["https://ia-sp-webhook.ucatolica.cue.ec", "https://ia-sp-backoffice.ucatolica.cue.ec"]}})
+CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True, allow_headers=["Authorization", "Content-Type"])
 
 ENV_MODE = os.getenv("FLASK_ENV", "production")
 
@@ -41,6 +38,7 @@ def require_api_key(f):
     wrapper.__name__ = f.__name__  
     return wrapper
 
+
 # ==================================================
 # Inicializar el asistente
 # ==================================================
@@ -58,29 +56,20 @@ def process_user_input():
     if assistant is None:
         return jsonify({"error": "El asistente no está disponible debido a un error."}), 500
 
-    data = request.json
-    ask = data.get('ask')
-    name = data.get('name')
-    phone = data.get('phone')
-    rol = data.get('rol')
-    thread_id = data.get('thread_id')
+    try:
+        user = UserData(**request.json)
 
-    if not ask:
-        return jsonify({"error": "Se requiere una pregunta."}), 400
-    if not name:
-        return jsonify({"error": "Se requiere un nombre."}), 400
-    if not phone:
-        return jsonify({"error": "Se requiere un teléfono."}), 400
-    if not rol:
-        return jsonify({"error": "Se requiere un rol."}), 400
+    except ValidationError as ve:
+        return jsonify({"error": ve.errors()}), 400
 
     try:
-        print(f"Datos recibidos: ask={ask}, name={name}, phone={phone}, rol={rol}, thread_id={thread_id}") #! Debug
-        answer, thread_id = openAIService.get_response(assistant.id, ask, name, phone, rol, thread_id)
-        return jsonify({"answer": answer, "thread_id": thread_id}), 200
+        answer, new_thread_id = openAIService.get_response(assistant.id, user)
+        return jsonify({"answer": answer, "thread_id": new_thread_id}), 200
+
     except ValueError as e:
         logger.error(f"Error al obtener respuesta: {e}")
         return jsonify({"error": str(e)}), 404
+
     except Exception as e:
         logger.error(f"Error inesperado al obtener respuesta: {e}")
         return jsonify({"error": str(e)}), 500
