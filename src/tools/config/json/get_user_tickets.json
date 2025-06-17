@@ -1,0 +1,11 @@
+{
+  "name": "get_user_tickets",
+  "description": "Recupera todos los casos o tickets registrados por el usuario en la mesa de servicios TIC, sin importar su estado.",
+  "strict": true,
+  "parameters": {
+    "type": "object",
+    "properties": {},
+    "required": [],
+    "additionalProperties": false
+  }
+}

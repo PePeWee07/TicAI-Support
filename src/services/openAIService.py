@@ -7,7 +7,7 @@ import json
 from datetime import datetime
 import re
 import time
-from tools.registry import function_registry
+from tools.config.registry import function_registry
 from config.logging_config import logger
 from models.userData import UserData
 from services.permissions import is_globally_restricted
@@ -195,7 +195,7 @@ def get_response(assistant_id, user: UserData):
                 thread_id=thread.id,
                 run_id=run.id
             )
-            time.sleep(5)
+            time.sleep(2)
             
             print(f"Estado del run: {run.status}")  #! Debug
                 

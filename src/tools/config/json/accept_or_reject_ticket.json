@@ -1,0 +1,32 @@
+{
+  "name": "accept_or_reject_ticket",
+  "description": "El usuario podrá aceptar o rechazar la solución de un caso o ticket. Deben proporcionar el id del ticket o caso y, si es rechazado, especificar el motivo del rechazo.",
+  "strict": true,
+  "parameters": {
+    "type": "object",
+    "required": [
+      "ticket_id",
+      "status",
+      "rejection_reason"
+    ],
+    "properties": {
+      "ticket_id": {
+        "type": "string",
+        "description": "ID del ticket o caso a aceptar o rechazar"
+      },
+      "status": {
+        "type": "string",
+        "description": "Estado de la solución, puede ser 'aceptada' o 'rechazada'",
+        "enum": [
+          "aceptada",
+          "rechazada"
+        ]
+      },
+      "rejection_reason": {
+        "type": "string",
+        "description": "Motivo del rechazo, requerido solo si el estado es 'rechazada'"
+      }
+    },
+    "additionalProperties": false
+  }
+}

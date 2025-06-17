@@ -4,7 +4,7 @@ from services.utils import moderation_required, validate_token_limit
 from config.logging_config import logger
 import os
 import atexit
-from tools.loader import load_tools_from_folder
+from tools.config.loader import load_tools_from_folder
 import datetime
 import pytz
 from flask_cors import CORS

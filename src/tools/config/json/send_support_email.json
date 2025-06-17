@@ -1,0 +1,28 @@
+{
+  "name": "send_support_email",
+  "description": "Solo debe usarse si el asistente no puede generar un ticket ni proporcionar ayuda relevante. Esta función envía un correo al equipo de Soporte TIC en UCACUE como último recurso.",
+  "strict": true,
+  "parameters": {
+    "type": "object",
+    "required": [
+      "user_query",
+      "subject",
+      "body"
+    ],
+    "properties": {
+      "user_query": {
+        "type": "string",
+        "description": "Texto original de la consulta del usuario"
+      },
+      "subject": {
+        "type": "string",
+        "description": "Asunto del correo de soporte"
+      },
+      "body": {
+        "type": "string",
+        "description": "Cuerpo del correo detallando la consulta y contexto"
+      }
+    },
+    "additionalProperties": false
+  }
+}

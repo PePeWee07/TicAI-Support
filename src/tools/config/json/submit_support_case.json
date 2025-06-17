@@ -1,0 +1,23 @@
+{
+  "name": "submit_support_case",
+  "description": "El usuario necesita enviar un caso a la mesa de servicios de soporte TIC, proporcionando un asunto y una descripción del problema.",
+  "strict": true,
+  "parameters": {
+    "type": "object",
+    "required": [
+      "asunto",
+      "description"
+    ],
+    "properties": {
+      "asunto": {
+        "type": "string",
+        "description": "Asunto del caso que servirá como título del ticket."
+      },
+      "description": {
+        "type": "string",
+        "description": "Descripción detallada del incidente."
+      }
+    },
+    "additionalProperties": false
+  }
+}

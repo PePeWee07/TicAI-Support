@@ -1,6 +1,6 @@
 import services.senEmail as ServiceEmail
 from models.sendEmailDto import EmailMessage
-from tools.registry import register_function, requires_roles
+from tools.config.registry import register_function, requires_roles
 from config.logging_config import logger
 
 @requires_roles("send_support_email", ["ADMINISTRATIVO", "ESTUDIANTE"])
@@ -53,7 +53,7 @@ def send_support_email(**kwargs):
         """
         
         email_data = EmailMessage(
-            to=["pepewee07@gmail.com"],
+            to=["pepewee010101@yopmail.com"],
             subject=subject,
             body=email_body,
             html=True
