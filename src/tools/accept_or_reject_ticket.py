@@ -3,7 +3,7 @@ from tools.config.registry import register_function, requires_roles
 from config.logging_config import logger
 import os
 
-@requires_roles("accept_or_reject_ticket", ["ADMIN"])
+@requires_roles("accept_or_reject_ticket", ["DOCENTE", "ADMINISTRATIVO", "ENCARGATURA"])
 @register_function("accept_or_reject_ticket")
 def accept_or_reject_ticket(**kwargs):
     """

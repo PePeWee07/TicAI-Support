@@ -3,7 +3,7 @@ from tools.config.registry import register_function, requires_roles
 from config.logging_config import logger
 import os
 
-@requires_roles("get_ticket_info", ["ADMINISTRATIVO", "ESTUDIANTE"])
+@requires_roles("get_ticket_info", ["DOCENTE", "ADMINISTRATIVO", "ENCARGATURA"])
 @register_function("get_ticket_info")
 def get_ticket_info(**kwargs):
     """
@@ -46,7 +46,7 @@ def get_ticket_info(**kwargs):
         if has_solution:
             return f"{message} Si lo deseas, ahora puedes aceptar o rechazar la solución registrada para este caso."
         else:
-            return message
+            return f"{message} No tiene una solución aún"
     except requests.exceptions.RequestException as ex:
         logger.error(f"Error al obtener la información del ticket {ticket_id}: {ex}")
         return f"No se pudo obtener la información del ticket #{ticket_id}. Intenta nuevamente más tarde."

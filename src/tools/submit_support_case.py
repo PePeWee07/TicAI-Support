@@ -3,7 +3,7 @@ from tools.config.registry import register_function, requires_roles
 from config.logging_config import logger
 import os
 
-@requires_roles("submit_support_case", ["ADMINISTRATIVO", "ESTUDIANTE"])
+@requires_roles("submit_support_case", ["DOCENTE", "ADMINISTRATIVO", "ENCARGATURA"])
 @register_function("submit_support_case")
 def submit_support_case(**kwargs):
     """

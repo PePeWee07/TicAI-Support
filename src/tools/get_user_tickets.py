@@ -3,7 +3,7 @@ from tools.config.registry import register_function, requires_roles
 from config.logging_config import logger
 import os
 
-@requires_roles("get_user_tickets", ["ADMINISTRATIVO", "ESTUDIANTE"])
+@requires_roles("get_user_tickets", ["DOCENTE", "ADMINISTRATIVO", "ENCARGATURA"])
 @register_function("get_user_tickets")
 def get_user_tickets(**kwargs):
     """

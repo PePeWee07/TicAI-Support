@@ -3,7 +3,7 @@ from models.sendEmailDto import EmailMessage
 from tools.config.registry import register_function, requires_roles
 from config.logging_config import logger
 
-@requires_roles("send_support_email", ["ADMINISTRATIVO", "ESTUDIANTE"])
+@requires_roles("send_support_email", ["DOCENTE", "ADMINISTRATIVO", "ENCARGATURA"])
 @register_function("send_support_email")
 def send_support_email(**kwargs):
     """
