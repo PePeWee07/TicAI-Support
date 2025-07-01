@@ -21,32 +21,66 @@ def get_ticket_info(**kwargs):
     - emailPersonal
     - sexo 
     """ 
-    
     ticket_id = kwargs.get("ticket_id")
     phone = kwargs.get("phone")
 
     urlBase = os.getenv("URL_BACKEND")
     url = urlBase + "v1/whatsapp/user/ticket/info"
-    params = {
-        "whatsappPhone": phone,
-        "ticketId": ticket_id
-    }
-    headers = {
-        os.getenv("BACKEND_HEADER"): os.getenv("API_KEY_BACKEND")
-    }
+    params = {"whatsappPhone": phone, "ticketId": ticket_id}
+    headers = {os.getenv("BACKEND_HEADER"): os.getenv("API_KEY_BACKEND")}
 
     try:
-        response = requests.get(url, params=params, headers=headers)
-        response.raise_for_status()
-        
-        data = response.json()
-        message = data.get("message")
-        has_solution = data.get("hasSolution")
+        resp = requests.get(url, params=params, headers=headers)
+        resp.raise_for_status()
+        info = resp.json()
 
-        if has_solution:
-            return f"{message} Si lo deseas, ahora puedes aceptar o rechazar la solución registrada para este caso."
-        else:
-            return f"{message} No tiene una solución aún"
+        # 1) Solución válida
+        sol = next(
+            (s for s in info.get("solutions", [])
+            if s.get("status","").lower() != "Rechazado"),
+            None
+        )
+        if sol:
+            lines = [
+                f"Tu ticket *{ticket_id}* tiene solución:",
+                f"Fecha: {sol['date_creation']}",
+                sol["content"],
+            ]
+            media = sol.get("mediaFiles", [])
+            if media:
+                names = [m["name"] for m in media]
+                lines.append(
+                    f"Se enviaron {len(media)} archivo(s) adjunto(s): " +
+                    ", ".join(names)
+                )
+            lines.append("\n¿Deseas *Aceptar solución* o *Rechazar solución*?")
+            return "\n".join(lines)
+
+        # 2) Seguimiento
+        notes = info.get("notes", [])
+        if notes:
+            last = notes[-1]
+            return (
+                f"Tu ticket *{ticket_id}* no tiene solución aún, "
+                "pero aquí está el último seguimiento:\n"
+                f"Fecha: {last['date_creation']}\n"
+                f"{last['content']}"
+            )
+
+        # 3) Asignación
+        techs = info.get("assigned_techs", [])
+        if techs:
+            names = [f"{t['firstname']} {t['realname']}" for t in techs]
+            return (
+                f"Tu ticket *{ticket_id}* aún no tiene solución ni seguimiento, "
+                f"pero está asignado a: {', '.join(names)}."
+            )
+
+        # 4) Nada
+        return (
+            f"Tu ticket *{ticket_id}* aún no tiene solución, "
+            "seguimiento ni técnico asignado."
+        )
     except requests.exceptions.RequestException as ex:
         logger.error(f"Error al obtener la información del ticket {ticket_id}: {ex}")
         return f"No se pudo obtener la información del ticket #{ticket_id}. Intenta nuevamente más tarde."

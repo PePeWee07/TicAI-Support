@@ -170,7 +170,7 @@ def get_response(assistant_id, user: UserData):
             thread_id=thread.id,
             assistant_id=assistant_id,
             additional_instructions=(
-                f"El nombre del usuario es '{user.name}'. Usa esta información de contexto."
+                f"Estás conversando con {user.name} (Roles: {', '.join(user.roles)}; Identificación oficial: {user.identificacion}). Eres CatIA y debes usar estos datos para personalizar y orientar tus respuestas."
             ),
             parallel_tool_calls=True
         )

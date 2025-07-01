@@ -35,7 +35,8 @@ def get_user_tickets(**kwargs):
     try:
         response = requests.get(url, params=params, headers=headers)
         response.raise_for_status()
-        return f"Se obtuvo los tickets correctamente"
+        tickets = response.json()
+        return f"Tickets: {tickets}, si algun ticket tiene estado resuelto, propon consultar la resolucion"
     except requests.exceptions.RequestException as ex:
         logger.error(f"Error al obtener tickets: {ex}")
         return "No se pudo obtener la información de tus tickets. Intenta más tarde."

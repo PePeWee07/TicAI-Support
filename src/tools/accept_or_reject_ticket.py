@@ -40,10 +40,8 @@ def accept_or_reject_ticket(**kwargs):
     try:
         response = requests.post(url, json=payload, params=params, headers=headers)
         response.raise_for_status()
-
         data = response.json()
         return data.get("message") or data.get("error")
-
     except requests.exceptions.RequestException as ex:
         logger.error(f"Error al registrar la decisión del ticket {ticket_id}: {ex}")
         return f"No se pudo registrar la decisión sobre el ticket #{ticket_id}. Intenta nuevamente más tarde."

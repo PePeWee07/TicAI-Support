@@ -1,6 +1,6 @@
 {
   "name": "get_ticket_info",
-  "description": "El usuario podra obtener informacion del ticket o caso que solicite, para ello tienen que proporcionar el ID del cual vana a consultar.",
+  "description": "El usuario podra obtener informacion del ticket o caso que solicite, para ello tienen que proporcionar el ID del cual van a consultar.",
   "strict": true,
   "parameters": {
     "type": "object",

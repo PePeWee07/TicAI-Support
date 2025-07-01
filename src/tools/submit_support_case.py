@@ -33,8 +33,8 @@ def submit_support_case(**kwargs):
     phone = kwargs.get("phone")
     emailInstitucional = kwargs.get("emailInstitucional")
     emailPersonal = kwargs.get("emailPersonal")
-    
-    # Construcción del objeto para el POST
+
+    email = emailInstitucional or emailPersonal or "virtual.assistant.uc@ucacue.edu.ec"
     ticket_data = {
         "input": {
             "name": asunto,
@@ -44,7 +44,7 @@ def submit_support_case(**kwargs):
             "_users_id_requester": 0,
             "_users_id_requester_notif": {
                 "use_notification": 1,
-                "alternative_email": [emailInstitucional or emailPersonal]
+                "alternative_email": [email]
             },
             "users_id_lastupdater": 0
         }
@@ -61,11 +61,10 @@ def submit_support_case(**kwargs):
     }
     
     try:
-        # Realizar el POST
         response = requests.post(url, json=ticket_data, params=params, headers=headers)
         response.raise_for_status()
         response_data = response.json()
-        return response_data.get("message", "Operación exitosa")
+        return f"Ticket creado: {response_data}, puedes requerir la informacion del ticket para ver su avance"
     except requests.exceptions.RequestException as ex:
         logger.error(f"Error al enviar el ticket: {ex}")
         return "No se pudo enviar el ticket debido a un error interno"
