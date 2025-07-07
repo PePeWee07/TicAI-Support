@@ -12,23 +12,22 @@ from models.userData import UserData
 from pydantic import ValidationError
 
 app = Flask(__name__)
-# CORS(app, resources={r"/ia/health": {"origins": ["https://ia-sp-webhook.ucatolica.cue.ec", "https://ia-sp-backoffice.ucatolica.cue.ec"]}})
 CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True, allow_headers=["Authorization", "Content-Type"])
 
 ENV_MODE = os.getenv("FLASK_ENV", "production")
+API_KEY = os.getenv("API_KEY")
+
+if not API_KEY :
+    logger.error("LA 'API_KEY' para el back-end no está configurado en las variables de entorno.")
+    raise ValueError("LA 'API_KEY' para el back-end no está configurado en las variables de entorno.")
 
 logger.info("Servicio Iniciado...")
 
-# ==================================================
-# Cargar funciones de herramientas
-# ==================================================
+# =========== Load tools Functions ================
 load_tools_from_folder("src/tools")
 
 
-# ==================================================
-# Verificar si se ha configurado el token de OpenAI
-# ==================================================
-API_KEY = os.getenv("API_KEY")
+# =========== Verify Token API_KEY =================
 def require_api_key(f):
     def wrapper(*args, **kwargs):
         api_key = request.headers.get('Authorization')
@@ -37,34 +36,23 @@ def require_api_key(f):
         return f(*args, **kwargs)
     wrapper.__name__ = f.__name__  
     return wrapper
-
-
-# ==================================================
-# Inicializar el asistente
-# ==================================================
-assistant = openAIService.verify_assistant()
     
     
-# ==================================================
-# Ruta para preguntar al asistente
-# ==================================================
+# =========== Input of user ==================
 @app.route('/ask', methods=['POST'])
 @moderation_required
 @validate_token_limit
 @require_api_key
 def process_user_input():
-    if assistant is None:
-        return jsonify({"error": "El asistente no está disponible debido a un error."}), 500
-
     try:
         user = UserData(**request.json)
 
+        answer, response_id = openAIService.get_response(user)
+        return jsonify({"answer": answer, "previousResponseId": response_id}), 200
+    
     except ValidationError as ve:
+        logger.error(f"error: {ve}")
         return jsonify({"error": ve.errors()}), 400
-
-    try:
-        answer, new_thread_id = openAIService.get_response(assistant.id, user)
-        return jsonify({"answer": answer, "thread_id": new_thread_id}), 200
 
     except ValueError as e:
         logger.error(f"Error al obtener respuesta: {e}")
@@ -76,78 +64,11 @@ def process_user_input():
 
 
 # ==================================================
-# Obtener el historial de mensajes de un hilo
+# TODO: Historial
 # ==================================================
-@app.route('/history', methods=['GET'])
-@require_api_key
-def get_history():
-    thread_id = request.args.get('thread_id')
-
-    if not thread_id:
-        return jsonify({"error": "Se requiere un thread_id."}), 400
-
-    try:
-        history = openAIService.view_history(thread_id)
-        return jsonify({"history": history}), 200
-    except ValueError as e:
-        logger.error(f"Error al obtener historial: {e}")
-        return jsonify({"error": str(e)}), 404
-    except Exception as e:
-        logger.error(f"Error inesperado al obtener historial: {e}")
-        return jsonify({"error": str(e)}), 500
 
 
-# ==================================================
-# Eliminar un hilo
-# ==================================================
-@app.route('/delete-thread-id', methods=['DELETE'])
-@require_api_key
-def delete_thread_endpoint():
-    thread_id = request.args.get('thread_id')
-
-    if not thread_id:
-        return jsonify({"error": "Se requiere un thread_id."}), 400
-
-    try:
-        message = openAIService.delete_thread(thread_id)
-        return jsonify({"message": message}), 200
-    except ValueError as e:
-        logger.error(f"Error al eliminar hilo: {e}")
-        return jsonify({"error": str(e)}), 404
-    except Exception as e:
-        logger.error(f"Error inesperado al eliminar hilo: {e}")
-        return jsonify({"error": str(e)}), 500
-
-
-# ==================================================
-# Eliminar multiples hilos
-# ==================================================
-@app.route('/delete-threads-ids', methods=['DELETE'])
-@require_api_key
-def delete_threads_endpoint():
-    data = request.get_json()
-    if not data or 'ids' not in data:
-        return jsonify({"error": "Se requiere una lista de IDs de hilos en el campo 'ids'."}), 400
-
-    ids = data['ids']
-    if not isinstance(ids, list) or not all(isinstance(i, str) for i in ids):
-        return jsonify({"error": "El campo 'ids' debe ser una lista de strings."}), 400
-
-    try:
-        message = openAIService.delete_threads(ids)
-        logger.info(f"Hilos eliminados: {message}")
-        return jsonify({"message": message}), 200
-    except TypeError as e:
-        logger.error(f"Error al eliminar hilos: {e}")
-        return jsonify({"error": str(e)}), 400
-    except Exception as e:
-        logger.error(f"Error inesperado al eliminar hilos: {e}")
-        return jsonify({"error": {e}}), 500
-
-
-# ==================================================
-# Healthcheck
-# ==================================================
+# ============ Healthcheck =======================
 @app.route('/health', methods=['GET'])
 def health_check():
     now_date = datetime.datetime.now(pytz.timezone('America/Guayaquil'))
@@ -159,9 +80,7 @@ def health_check():
     }), 200
     
 
-# ==================================================
-# Cerrar recursos al salir
-# ==================================================
+# ============ Cerrar recursos al salir ==================
 def clean_up():
     logger.info("Cerrando aplicación y limpiando recursos.") 
 atexit.register(clean_up)

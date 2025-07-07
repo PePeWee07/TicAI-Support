@@ -6,216 +6,154 @@ import tiktoken
 import json
 from datetime import datetime
 import re
-import time
 from tools.config.registry import function_registry
 from config.logging_config import logger
 from models.userData import UserData
 from services.permissions import is_globally_restricted
 
-# ==================================================
-# Carga variables de entorno
-# ==================================================
-
 load_dotenv(override=True)
-OpenAI_key = os.getenv("GPT_TICS_KEY")
-Moderation_Key = os.getenv("MODERATION_KEY")
-model_moderation = os.getenv("MODEL_MODERATION")
-encoding_base = os.getenv("ENCODING_BASE")
-
-if not  OpenAI_key :
+GPT_TICS_KEY = os.getenv("GPT_TICS_KEY")
+MODERATION_KEY = os.getenv("MODERATION_KEY")
+MODEL_MODERATION = os.getenv("MODEL_MODERATION")
+ENCODING_BASE = os.getenv("ENCODING_BASE")
+PROMPT_ID = os.getenv("PROMPT_ID")
+if not  GPT_TICS_KEY :
     logger.error("La Api_key 'GPT_TICS_KEY' de OpenAI no está configura en la variables de entorno.")
     raise ValueError("La Api_key 'GPT_TICS_KEY' de OpenAI no está configura en la variables de entorno.")
-
-if not  Moderation_Key :
+if not  MODERATION_KEY :
     logger.error("La Api_key 'MODERATION_KEY' de OpenAI no está configura en la variables de entorno.")
     raise ValueError("La Api_key 'MODERATION_KEY' de OpenAI no está configura en las variables de entorno.")
-
-if not  model_moderation :
+if not  MODEL_MODERATION :
     logger.error("El modelo 'MODEL_MODERATION' de OpenAI no está configura en las variables de entorno.")
     raise ValueError("El modelo 'MODEL_MODERATION' de OpenAI no está configura en las variables de entorno.")
-
-if not  encoding_base :
+if not  ENCODING_BASE :
     logger.error("El encoding 'ENCODING_BASE' de TikToken no está configura en las variables de entorno.")
     raise ValueError("El encoding 'ENCODING_BASE' de TikToken no está configura en las variables de entorno.")
+if not PROMPT_ID :
+    logger.error("El Prompt 'PROMPT_ID' no está configurado en las variables de entorno.")
+    raise ValueError("El Prompt 'PROMPT_ID' no está configurado en las variables de entorno.")
+
+# ========== Instancia de OpenAI ======================
+client = OpenAI(api_key = GPT_TICS_KEY)
+moderation = OpenAI(api_key = MODERATION_KEY)
 
 
-# ==================================================
-# Crear una instancia de OpenAI
-# ==================================================
-client = OpenAI(api_key = OpenAI_key)
-moderation = OpenAI(api_key = Moderation_Key)
+# =========== Obtener respuesta del asistente ==========
+def clean_response(text: str) -> str:
+    """Limpia caracteres de control en la respuesta."""
+    text = re.sub(r'【.*?】', '', text)
+    text = re.sub(r'.*?[,;:]?\s*', '', text)
+    return text
 
 
-# ==================================================
-# Verificar si el asistente existe o crear uno nuevo
-# ==================================================
-def verify_assistant():
-    assistant_id = os.getenv("ASSISTANT_ID")
-    assistant = None
-
-    if assistant_id:
-        try:
-            assistant = client.beta.assistants.retrieve(assistant_id=assistant_id)
-        except Exception as e:
-            assistant = None
-            raise RuntimeError(e)
-
-    if not assistant:
-        raise ValueError("El ASSISTANT_ID del asistente no fue encontrado.")
-        
-    return assistant
-
-
-# ==================================================
-# Obtener respuesta del asistente
-# ==================================================
-def clean_response(text_response: str) -> str:
-    text_response = re.sub(r'【.*?】', '', text_response)
-    text_response = re.sub(r'\ue200.*?\ue201[,;:]?\s*', '', text_response)
-    return text_response
-
-def parse_tool_arguments(args):
-    if isinstance(args, str):
-        try:
-            return json.loads(args)
-        except Exception as e:
-            logger.error(f"Error al parsear los argumentos de la herramienta: {e}")
-            return {}
-    return args
-
-def execute_tool_function(tool_call, user: UserData) -> dict:
-    func_id = tool_call.function.name
-    entry = function_registry.get(func_id)
-
-    if entry is None:
-        return {
-            "tool_call_id": tool_call.id,
-            "output": f"Función '{func_id}' no encontrada."
-        }
-
-    func = entry["func"]
-    allowed_roles = entry["allowed_roles"]
-
+def process_required_action(tool_calls: list, user: UserData, restricted: bool) -> list:
+    results = []
     user_roles = {r.strip().upper() for r in user.roles}
 
-    # En caso de no exita nigún rol permitido, denegar acceso
-    if not allowed_roles:
-        return {
-            "tool_call_id": tool_call.id,
-            "output": f"Esta accion no esta permitida para ningún rol."
-        }
-
-    # Verificar si el usuario tiene al menos un rol permitido
-    if user_roles.isdisjoint(allowed_roles):
-        restricted_msg = f"Esta accion no esta permitida para usuarios con rol de {sorted(user_roles)}."
-        print(restricted_msg);  #! Debug
-        return {
-            "tool_call_id": tool_call.id,
-            "output": restricted_msg
-        }
-
-    args = parse_tool_arguments(tool_call.function.arguments)
-    user_args = {
-        "phone": user.phone,
-        "names": user.name,
-        "roles": user.roles,
-        "identificacion": user.identificacion,
-        "emailInstitucional": user.emailInstitucional,
-        "emailPersonal": user.emailPersonal,
-        "sexo": user.sexo,
-    }
-    for key, val in user_args.items():
-        if val is not None:
-            args.setdefault(key, val)
-
-    try:
-        output = func(**args)
-    except Exception as e:
-        output = "False"
-        logger.error(f"Error al ejecutar '{func_id}': {e}")
-
-    return {
-        "tool_call_id": tool_call.id,
-        "output": output
-    }
-
-
-def process_required_action(tools_to_call, user: UserData, restricted: bool):
-    tools_output_array = []
-    for tool_call in tools_to_call:
+    for call in tool_calls:
+        tid = call.call_id
+        # Bloqueo global
         if restricted:
-            restricted_msg = f"Esta accion no esta permitida para usuarios con rol de {user.roles}."
-            print(restricted_msg);  #! Debug
-            tools_output_array.append({
-                "tool_call_id": tool_call.id,
-                "output": restricted_msg
-            })
-        else:
-            tool_output = execute_tool_function(tool_call, user)
-            tools_output_array.append(tool_output)
-    return tools_output_array
+            msg = f"El usuario no tiene permitodo realizar esta acción por su roles: {user_roles}"
+            results.append({"tool_call_id": tid, "output": msg})
+            continue
 
-def get_response(assistant_id, user: UserData):
-    try:
-        print(f"Datos recibidos: {user}")  #! Debug
-        thread = get_or_create_thread(user.thread_id)
-        
-        client.beta.threads.messages.create(
-            thread_id=thread.id,
-            role="user",
-            content=user.ask
-        )
-        
-        run = client.beta.threads.runs.create_and_poll(
-            thread_id=thread.id,
-            assistant_id=assistant_id,
-            additional_instructions=(
-                f"Estás conversando con {user.name} (Roles: {', '.join(user.roles)}; Identificación oficial: {user.identificacion}). Eres CatIA y debes usar estos datos para personalizar y orientar tus respuestas."
-            ),
+        entry = function_registry.get(call.name)
+        if not entry:
+            results.append({"tool_call_id": tid, "output": f"Esta Función '{call.name}' no esta definida en tus procesos de ejecucion."})
+            continue
+
+        allowed = entry.get("allowed_roles", set())
+        if not allowed:
+            results.append({"tool_call_id": tid, "output": "Esta acción no está permitida para ningún rol."})
+            continue
+        if user_roles.isdisjoint(allowed):
+            results.append({"tool_call_id": tid, "output": f"El usuario no tiene permitodo realizar esta acción por su roles: {sorted(user_roles)}."})
+            continue
+
+        # Parsear args y completar con datos de usuario
+        try:
+            args = json.loads(call.arguments) if call.arguments else {}
+        except json.JSONDecodeError:
+            args = {}
+
+        for key, val in {
+            "phone": user.phone,
+            "names": user.name,
+            "roles": user.roles,
+            "identificacion": user.identificacion,
+            "emailInstitucional": user.emailInstitucional,
+            "emailPersonal": user.emailPersonal,
+            "sexo": user.sexo,
+        }.items():
+            if val is not None and key not in args:
+                args[key] = val
+
+        # Ejecutar función       
+        try:
+            output = entry["func"](**args)
+        except Exception as e:
+            logger.error(f"Error ejecutando {call.name}: {e}")
+            output = "Error interno al ejecutar la función."
+
+        results.append({"tool_call_id": tid, "output": output})
+
+    return results
+
+
+def get_response(user: UserData) -> tuple[str, str]:
+    # 1) Creamos la primera llamada, con el posible previousResponseId que venga del cliente
+    conversation = [{"role": "user", "content": user.ask}]
+    response = client.responses.create(
+        prompt={"id": PROMPT_ID},
+        input=conversation,
+        previous_response_id=user.previousResponseId,  # si lo tienes de la UI
+        store=True,
+        parallel_tool_calls=True
+    )
+    session_id = response.id
+
+    # 2) Bucle de function calls
+    while True:
+        calls = [item for item in response.output if item.type == "function_call"]
+        if not calls:
+            break
+
+        # Ejecuto llamadas a mis funciones y las agrego al array
+        outputs = process_required_action(calls, user, is_globally_restricted(user.roles))
+        for call, out in zip(calls, outputs):
+            # in -> function_call
+            conversation.append({
+                "type":         "function_call",
+                "name":         call.name,
+                "arguments":    call.arguments,
+                "call_id":      call.call_id
+            })
+            # out -> function_call_output
+            conversation.append({
+                "type":    "function_call_output",
+                "call_id": call.call_id,
+                "output":  out["output"]
+            })
+
+        # 3) Re-invoco el modelo **pasando siempre** el session_id como previous_response_id
+        response = client.responses.create(
+            prompt={"id": PROMPT_ID},
+            input=conversation,
+            previous_response_id=session_id,  # <— importante!
+            store=True,
             parallel_tool_calls=True
         )
+        session_id = response.id   # actualizo para el siguiente ciclo
 
-        while run.status not in ['completed', 'failed']:
-            if run.required_action is not None:
-                tools_to_call = run.required_action.submit_tool_outputs.tool_calls
-                
-                restricted_global = is_globally_restricted(user.roles)
-                
-                tools_output_array = process_required_action(
-                    tools_to_call, user, restricted_global
-                )
-                
-                run = client.beta.threads.runs.submit_tool_outputs(
-                    thread_id=thread.id,
-                    run_id=run.id,
-                    tool_outputs=tools_output_array
-                )
-            
-            run = client.beta.threads.runs.retrieve(
-                thread_id=thread.id,
-                run_id=run.id
-            )
-            time.sleep(2)
-            
-            print(f"Estado del run: {run.status}")  #! Debug
-                
-        if run.status == 'completed':
-            messages = client.beta.threads.messages.list(thread_id=thread.id)
-            assistant_messages = [msg for msg in messages.data if msg.role == 'assistant' and msg.content]
-            if assistant_messages:
-                final_message = max(assistant_messages, key=lambda m: m.created_at)
-                text_response = final_message.content[0].text.value
-                clean_message = clean_response(text_response)
-                return clean_message, thread.id
-            else:
-                return "No se encontró respuesta del asistente.", thread.id
-        else:
-            return f"La ejecución no se completó correctamente. Estado: {run.status}", thread.id
-
-    except ValueError as e:
-        raise ValueError(e)
-    except Exception as e:
-        raise RuntimeError(e)
+    # 4) Extraigo la respuesta final
+    texts = [
+        item.content[0].text
+        for item in response.output
+        if item.type == "message"
+    ]
+    answer = clean_response("\n\n".join(texts))
+    return answer, session_id
 
 
 # ==================================================
@@ -240,7 +178,7 @@ UMBRAL_CATEGORIES = {
 def moderation_text(texto, umbrales=UMBRAL_CATEGORIES):
     try:
         response = moderation.moderations.create(
-            model=model_moderation,
+            model=MODEL_MODERATION,
             input=texto,
         )
         resp_dict = response.to_dict()
@@ -260,87 +198,10 @@ def moderation_text(texto, umbrales=UMBRAL_CATEGORIES):
 # ==================================================
 # Obtener el número de tokens en una cadena de texto
 # ==================================================
-def num_tokens_from_string(answerToToken: str, encoding_name: str = encoding_base) -> int:
+def num_tokens_from_string(answerToToken: str, encoding_name: str = ENCODING_BASE) -> int:
     try:
         encoding = tiktoken.get_encoding(encoding_name)
         num_tokens = len(encoding.encode(answerToToken))
         return num_tokens
     except Exception as e:
         raise RuntimeError(e)
-
-
-# ==================================================
-# Verificar si un hilo existe o crear uno nuevo
-# ==================================================
-def get_or_create_thread(thread_id=None):
-    if thread_id:
-        try:
-            thread = client.beta.threads.retrieve(thread_id=thread_id)
-            return thread
-        except openai.OpenAIError as e:
-            if "No thread found" in str(e):
-                thread = client.beta.threads.create()
-                return thread
-            else:
-                raise e
-        except Exception as e:
-            raise RuntimeError(f"Error inesperado al recuperar el hilo con ID {thread_id}: {e}")
-    try:
-        thread = client.beta.threads.create()
-        return thread
-    except Exception as e:
-        raise RuntimeError(f"Error al crear un nuevo hilo: {e}")
-    
-    
-# ==================================================
-# Ver historial de mensajes de un hilo
-# ==================================================
-def view_history(thread_id):
-    try:
-        messages = client.beta.threads.messages.list(thread_id=thread_id)
-        history = []
-        for msg in messages.data:
-            history.append({
-                "role": msg.role,
-                "content": msg.content[0].text.value if msg.content else "Sin contenido",
-                "timestamp": datetime.fromtimestamp(msg.created_at).strftime("%d-%m-%Y %H:%M:%S")
-            })
-        return history
-    except openai.OpenAIError as e:
-        if "No thread found" in str(e):
-            raise ValueError(f"Hilo con ID {thread_id} no encontrado o ha sido eliminado.")
-        else:
-            raise e
-    except Exception as e:
-        raise RuntimeError(f"Error al recuperar Historail del hilo: {str(e)}")
-
-
-# ==================================================
-# Eliminar un hilo
-# ==================================================
-def delete_thread(thread_id):
-    try:
-        client.beta.threads.delete(thread_id=thread_id)
-        return f"Hilo con ID {thread_id} eliminado exitosamente."
-    except openai.OpenAIError as e:
-        if "No thread found" in str(e):
-            raise ValueError(f"Hilo con ID {thread_id} no encontrado o ya ha sido eliminado.")
-        else:
-            raise e
-    except Exception as e:
-        raise RuntimeError(f"Error al eliminar el hilo con ID {thread_id}: {e}")
-
-
-# ==================================================
-# Eliminar múltiples hilos
-# ==================================================
-def delete_threads(thread_ids):
-    if not isinstance(thread_ids, list):
-        raise TypeError("El argumento debe ser una lista de IDs de hilos.")
-
-    resultados = []
-    for thread_id in thread_ids:
-        resultado = delete_thread(thread_id)
-        resultados.append(resultado)
-
-    return resultados
