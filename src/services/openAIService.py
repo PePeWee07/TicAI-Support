@@ -10,6 +10,7 @@ from tools.config.registry import function_registry
 from config.logging_config import logger
 from models.userData import UserData
 from services.permissions import is_globally_restricted
+import pprint
 
 load_dotenv(override=True)
 GPT_TICS_KEY = os.getenv("GPT_TICS_KEY")
@@ -111,6 +112,8 @@ def get_response(user: UserData) -> tuple[str, str]:
         store=True,
         parallel_tool_calls=True
     )
+    print("Response1:")
+    print(json.dumps(response.to_dict(), indent=2, ensure_ascii=False))
     session_id = response.id
 
     # 2) Bucle de function calls
@@ -136,15 +139,18 @@ def get_response(user: UserData) -> tuple[str, str]:
                 "output":  out["output"]
             })
 
-        # 3) Re-invoco el modelo **pasando siempre** el session_id como previous_response_id
+        # 3) Re-invoco el modelo
         response = client.responses.create(
             prompt={"id": PROMPT_ID},
             input=conversation,
-            previous_response_id=session_id,  # <— importante!
+            previous_response_id=session_id,
             store=True,
             parallel_tool_calls=True
         )
-        session_id = response.id   # actualizo para el siguiente ciclo
+        print()
+        print("Response-tool:")
+        print(json.dumps(response.to_dict(), indent=2, ensure_ascii=False))
+        session_id = response.id
 
     # 4) Extraigo la respuesta final
     texts = [
