@@ -18,32 +18,52 @@ MODERATION_KEY = os.getenv("MODERATION_KEY")
 MODEL_MODERATION = os.getenv("MODEL_MODERATION")
 ENCODING_BASE = os.getenv("ENCODING_BASE")
 PROMPT_ID = os.getenv("PROMPT_ID")
-if not  GPT_TICS_KEY :
-    logger.error("La Api_key 'GPT_TICS_KEY' de OpenAI no está configura en la variables de entorno.")
-    raise ValueError("La Api_key 'GPT_TICS_KEY' de OpenAI no está configura en la variables de entorno.")
-if not  MODERATION_KEY :
-    logger.error("La Api_key 'MODERATION_KEY' de OpenAI no está configura en la variables de entorno.")
-    raise ValueError("La Api_key 'MODERATION_KEY' de OpenAI no está configura en las variables de entorno.")
-if not  MODEL_MODERATION :
-    logger.error("El modelo 'MODEL_MODERATION' de OpenAI no está configura en las variables de entorno.")
-    raise ValueError("El modelo 'MODEL_MODERATION' de OpenAI no está configura en las variables de entorno.")
-if not  ENCODING_BASE :
-    logger.error("El encoding 'ENCODING_BASE' de TikToken no está configura en las variables de entorno.")
-    raise ValueError("El encoding 'ENCODING_BASE' de TikToken no está configura en las variables de entorno.")
-if not PROMPT_ID :
-    logger.error("El Prompt 'PROMPT_ID' no está configurado en las variables de entorno.")
-    raise ValueError("El Prompt 'PROMPT_ID' no está configurado en las variables de entorno.")
+if not GPT_TICS_KEY:
+    logger.error(
+        "La Api_key 'GPT_TICS_KEY' de OpenAI no está configura en la variables de entorno."
+    )
+    raise ValueError(
+        "La Api_key 'GPT_TICS_KEY' de OpenAI no está configura en la variables de entorno."
+    )
+if not MODERATION_KEY:
+    logger.error(
+        "La Api_key 'MODERATION_KEY' de OpenAI no está configura en la variables de entorno."
+    )
+    raise ValueError(
+        "La Api_key 'MODERATION_KEY' de OpenAI no está configura en las variables de entorno."
+    )
+if not MODEL_MODERATION:
+    logger.error(
+        "El modelo 'MODEL_MODERATION' de OpenAI no está configura en las variables de entorno."
+    )
+    raise ValueError(
+        "El modelo 'MODEL_MODERATION' de OpenAI no está configura en las variables de entorno."
+    )
+if not ENCODING_BASE:
+    logger.error(
+        "El encoding 'ENCODING_BASE' de TikToken no está configura en las variables de entorno."
+    )
+    raise ValueError(
+        "El encoding 'ENCODING_BASE' de TikToken no está configura en las variables de entorno."
+    )
+if not PROMPT_ID:
+    logger.error(
+        "El Prompt 'PROMPT_ID' no está configurado en las variables de entorno."
+    )
+    raise ValueError(
+        "El Prompt 'PROMPT_ID' no está configurado en las variables de entorno."
+    )
 
 # ========== Instancia de OpenAI ======================
-client = OpenAI(api_key = GPT_TICS_KEY)
-moderation = OpenAI(api_key = MODERATION_KEY)
+client = OpenAI(api_key=GPT_TICS_KEY)
+moderation = OpenAI(api_key=MODERATION_KEY)
 
 
 # =========== Obtener respuesta del asistente ==========
 def clean_response(text: str) -> str:
     """Limpia caracteres de control en la respuesta."""
-    text = re.sub(r'【.*?】', '', text)
-    text = re.sub(r'.*?[,;:]?\s*', '', text)
+    text = re.sub(r"【.*?】", "", text)
+    text = re.sub(r".*?[,;:]?\s*", "", text)
     return text
 
 
@@ -61,15 +81,30 @@ def process_required_action(tool_calls: list, user: UserData, restricted: bool) 
 
         entry = function_registry.get(call.name)
         if not entry:
-            results.append({"tool_call_id": tid, "output": f"Esta Función '{call.name}' no esta definida en tus procesos de ejecucion."})
+            results.append(
+                {
+                    "tool_call_id": tid,
+                    "output": f"Esta Función '{call.name}' no esta definida en tus procesos de ejecucion.",
+                }
+            )
             continue
 
         allowed = entry.get("allowed_roles", set())
         if not allowed:
-            results.append({"tool_call_id": tid, "output": "Esta acción no está permitida para ningún rol."})
+            results.append(
+                {
+                    "tool_call_id": tid,
+                    "output": "Esta acción no está permitida para ningún rol.",
+                }
+            )
             continue
         if user_roles.isdisjoint(allowed):
-            results.append({"tool_call_id": tid, "output": f"El usuario no tiene permitodo realizar esta acción por su roles: {sorted(user_roles)}."})
+            results.append(
+                {
+                    "tool_call_id": tid,
+                    "output": f"El usuario no tiene permitodo realizar esta acción por su roles: {sorted(user_roles)}.",
+                }
+            )
             continue
 
         # Parsear args y completar con datos de usuario
@@ -90,7 +125,7 @@ def process_required_action(tool_calls: list, user: UserData, restricted: bool) 
             if val is not None and key not in args:
                 args[key] = val
 
-        # Ejecutar función       
+        # Ejecutar función
         try:
             output = entry["func"](**args)
         except Exception as e:
@@ -102,69 +137,112 @@ def process_required_action(tool_calls: list, user: UserData, restricted: bool) 
     return results
 
 
-def get_response(user: UserData) -> tuple[str, str]:
-    # 1) Creamos la primera llamada, con el posible previousResponseId que venga del cliente
-    conversation = [{"role": "user", "content": user.ask}]
+def get_response(user: UserData) -> tuple[str, str, list]:
+    # 1) Historial de conversación
+    conversation = [{"role":"user","content":user.ask}]
+    audit_logs = []
+    prev_conv_len = 0                # indice donde empezo este turno
+    
+    user_data = {
+        "phone": user.phone,
+        "names": user.name,
+        "roles": user.roles,
+        "identificacion": user.identificacion,
+        "emailInstitucional": user.emailInstitucional,
+        "emailPersonal": user.emailPersonal,
+        "sexo": user.sexo
+    }
+    user_data_str = json.dumps(user_data, ensure_ascii=False, indent=2)
+    print(f"Datos del usuario: {user_data_str}")
+
+    # 2) Primera llamada
     response = client.responses.create(
         prompt={"id": PROMPT_ID},
         input=conversation,
-        previous_response_id=user.previousResponseId,  # si lo tienes de la UI
+        previous_response_id=user.previousResponseId,
         store=True,
-        parallel_tool_calls=True
+        parallel_tool_calls=True,
+        instructions = f"""
+        El usuario con el que vas a conversar tiene estos datos: {user_data_str}  
+        Ajusta el nivel de detalle y el tono según sus roles ({', '.join(user.roles)}).  
+        Trata su teléfono, identificación y correos como datos sensibles: no los reveles a terceros ni los repitas sin necesidad.  
+        Cuando hagas referencia a su email institucional o personal, úsalo solo si es relevante para la conversación.
+        """
     )
-    print("Response1:")
-    print(json.dumps(response.to_dict(), indent=2, ensure_ascii=False))
-    session_id = response.id
+    full = response.to_dict()
+    # --- guardo solo los bloques nuevos ---
+    new_input = conversation[prev_conv_len:]      # aqui solo la pregunta del user
+    audit_logs.append({
+        "response_id":         full["id"],
+        "previous_response_id":full["previous_response_id"],
+        "created_at":          full["created_at"],
+        "model":               full["model"],
+        "prompt":              full["prompt"],
+        "usage":               full["usage"],
+        "input":               new_input,
+        "output":              full["output"],
+        "metadata":            full.get("metadata", {}),
+        "reasoning":           full.get("reasoning", {})
+    })
+    prev_conv_len = len(conversation)              # actualizo indice
 
-    # 2) Bucle de function calls
+    # 3) Bucle de function calls
     while True:
-        calls = [item for item in response.output if item.type == "function_call"]
+        calls = [item for item in response.output if item.type=="function_call"]
         if not calls:
             break
 
-        # Ejecuto llamadas a mis funciones y las agrego al array
+        # ejecuto las funciones y las añado a conversation
         outputs = process_required_action(calls, user, is_globally_restricted(user.roles))
         for call, out in zip(calls, outputs):
-            # in -> function_call
             conversation.append({
-                "type":         "function_call",
-                "name":         call.name,
-                "arguments":    call.arguments,
-                "call_id":      call.call_id
+                "type":       "function_call",
+                "name":       call.name,
+                "arguments":  call.arguments,
+                "call_id":    call.call_id
             })
-            # out -> function_call_output
             conversation.append({
-                "type":    "function_call_output",
-                "call_id": call.call_id,
-                "output":  out["output"]
+                "type":       "function_call_output",
+                "call_id":    call.call_id,
+                "output":     out["output"]
             })
 
-        # 3) Re-invoco el modelo
+        # 4) Segunda llamada con la conversacion extendida
         response = client.responses.create(
-            prompt={"id": PROMPT_ID},
+            prompt={"id":PROMPT_ID},
             input=conversation,
-            previous_response_id=session_id,
+            previous_response_id=full["id"],
             store=True,
             parallel_tool_calls=True
         )
-        print()
-        print("Response-tool:")
-        print(json.dumps(response.to_dict(), indent=2, ensure_ascii=False))
-        session_id = response.id
+        full = response.to_dict()
 
-    # 4) Extraigo la respuesta final
+        # --- de nuevo guardo sólo los bloques añadidos desde prev_conv_len ---
+        new_input = conversation[prev_conv_len:]
+        audit_logs.append({
+            "response_id":         full["id"],
+            "previous_response_id":full["previous_response_id"],
+            "created_at":          full["created_at"],
+            "model":               full["model"],
+            "prompt":              full["prompt"],
+            "usage":               full["usage"],
+            "input":               new_input,
+            "output":              full["output"],
+            "metadata":            full.get("metadata", {}),
+            "reasoning":           full.get("reasoning", {})
+        })
+        prev_conv_len = len(conversation)          # muevo el indice
+
+    # 5) Extraigo la respuesta final
     texts = [
         item.content[0].text
         for item in response.output
-        if item.type == "message"
+        if item.type=="message"
     ]
     answer = clean_response("\n\n".join(texts))
-    return answer, session_id
+    return answer, response.id, audit_logs
 
-
-# ==================================================
-# Modelo de moderación de texto
-# ==================================================
+# =========== Umbral de moderación ===================
 UMBRAL_CATEGORIES = {
     "harassment": 0.47,
     "harassment/threatening": 0.47,
@@ -189,22 +267,22 @@ def moderation_text(texto, umbrales=UMBRAL_CATEGORIES):
         )
         resp_dict = response.to_dict()
         scores = resp_dict["results"][0]["category_scores"]
-        
+
         for categoria, umbral in umbrales.items():
             valor = scores.get(categoria, 0.0)
             if valor >= umbral:
                 return True
 
         return False
-    
+
     except Exception as e:
         raise RuntimeError(e)
-    
-    
-# ==================================================
-# Obtener el número de tokens en una cadena de texto
-# ==================================================
-def num_tokens_from_string(answerToToken: str, encoding_name: str = ENCODING_BASE) -> int:
+
+
+# ========== tokens en una cadena de texto ===========
+def num_tokens_from_string(
+    answerToToken: str, encoding_name: str = ENCODING_BASE
+) -> int:
     try:
         encoding = tiktoken.get_encoding(encoding_name)
         num_tokens = len(encoding.encode(answerToToken))

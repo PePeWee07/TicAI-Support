@@ -47,8 +47,8 @@ def process_user_input():
     try:
         user = UserData(**request.json)
 
-        answer, response_id = openAIService.get_response(user)
-        return jsonify({"answer": answer, "previousResponseId": response_id}), 200
+        answer, response_id, data = openAIService.get_response(user)
+        return jsonify({"answer": answer, "previousResponseId": response_id, "data": data}), 200
     
     except ValidationError as ve:
         logger.error(f"error: {ve}")
