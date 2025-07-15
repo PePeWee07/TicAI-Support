@@ -142,32 +142,25 @@ def get_response(user: UserData) -> tuple[str, str, list]:
     conversation = [{"role":"user","content":user.ask}]
     audit_logs = []
     prev_conv_len = 0                # indice donde empezo este turno
-    
-    user_data = {
-        "phone": user.phone,
-        "names": user.name,
-        "roles": user.roles,
-        "identificacion": user.identificacion,
-        "emailInstitucional": user.emailInstitucional,
-        "emailPersonal": user.emailPersonal,
-        "sexo": user.sexo
-    }
-    user_data_str = json.dumps(user_data, ensure_ascii=False, indent=2)
-    print(f"Datos del usuario: {user_data_str}")
 
     # 2) Primera llamada
     response = client.responses.create(
-        prompt={"id": PROMPT_ID},
+        prompt={
+            "id": PROMPT_ID,
+            "variables": {
+                "phone": user.phone if user.phone else "unknown",
+                "names": user.name if user.name else "unknown",
+                "roles": ", ".join(user.roles) if user.roles else "unknown",
+                "identificacion": user.identificacion if user.identificacion else "unknown",
+                "email_institucional": user.emailInstitucional if user.emailInstitucional else "unknown",
+                "email_personal": user.emailPersonal if user.emailPersonal else "unknown",
+                "sexo": user.sexo if user.sexo else "unknown"
+            }
+        },
         input=conversation,
         previous_response_id=user.previousResponseId,
         store=True,
-        parallel_tool_calls=True,
-        instructions = f"""
-        El usuario con el que vas a conversar tiene estos datos: {user_data_str}  
-        Ajusta el nivel de detalle y el tono según sus roles ({', '.join(user.roles)}).  
-        Trata su teléfono, identificación y correos como datos sensibles: no los reveles a terceros ni los repitas sin necesidad.  
-        Cuando hagas referencia a su email institucional o personal, úsalo solo si es relevante para la conversación.
-        """
+        parallel_tool_calls=True
     )
     full = response.to_dict()
     # --- guardo solo los bloques nuevos ---
