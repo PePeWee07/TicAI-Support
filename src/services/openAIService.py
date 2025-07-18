@@ -202,7 +202,18 @@ def get_response(user: UserData) -> tuple[str, str, list]:
 
         # 4) Segunda llamada con la conversacion extendida
         response = client.responses.create(
-            prompt={"id":PROMPT_ID},
+            prompt={
+                "id": PROMPT_ID,
+                "variables": {
+                    "phone": user.phone if user.phone else "unknown",
+                    "names": user.name if user.name else "unknown",
+                    "roles": ", ".join(user.roles) if user.roles else "unknown",
+                    "identificacion": user.identificacion if user.identificacion else "unknown",
+                    "email_institucional": user.emailInstitucional if user.emailInstitucional else "unknown",
+                    "email_personal": user.emailPersonal if user.emailPersonal else "unknown",
+                    "sexo": user.sexo if user.sexo else "unknown"
+                }
+            },
             input=conversation,
             previous_response_id=full["id"],
             store=True,
