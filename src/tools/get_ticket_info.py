@@ -1,4 +1,5 @@
 import requests
+import json
 from tools.config.registry import register_function, requires_roles
 from config.logging_config import logger
 import os
@@ -34,53 +35,80 @@ def get_ticket_info(**kwargs):
         resp.raise_for_status()
         info = resp.json()
 
-        # 1) Solución válida
-        sol = next(
-            (s for s in info.get("solutions", [])
-            if s.get("status","").lower() != "Rechazado"),
-            None
-        )
-        if sol:
-            lines = [
-                f"Tu ticket *{ticket_id}* tiene solución:",
-                f"Fecha: {sol['date_creation']}",
-                sol["content"],
-            ]
-            media = sol.get("mediaFiles", [])
-            if media:
-                names = [m["name"] for m in media]
-                lines.append(
-                    f"Se enviaron {len(media)} archivo(s) adjunto(s): " +
-                    ", ".join(names)
-                )
-            lines.append("\n¿Deseas *Aceptar solución* o *Rechazar solución*?")
-            return "\n".join(lines)
+        output = {}
 
-        # 2) Seguimiento
-        notes = info.get("notes", [])
-        if notes:
-            last = notes[-1]
-            return (
-                f"Tu ticket *{ticket_id}* no tiene solución aún, "
-                "pero aquí está el último seguimiento:\n"
-                f"Fecha: {last['date_creation']}\n"
-                f"{last['content']}"
-            )
+        # 1) Datos básicos
+        if info.get("requester_email"):
+            output["requester_email"] = info["requester_email"]
+        if info.get("watcher_emails"):
+            output["watcher_emails"] = info["watcher_emails"]
 
-        # 3) Asignación
+        # 2) Técnicos asignados (solo datos útiles)
         techs = info.get("assigned_techs", [])
         if techs:
-            names = [f"{t['firstname']} {t['realname']}" for t in techs]
-            return (
-                f"Tu ticket *{ticket_id}* aún no tiene solución ni seguimiento, "
-                f"pero está asignado a: {', '.join(names)}."
-            )
+            output["assigned_techs"] = [
+                {
+                    "name": f"{t.get('firstname','')} {t.get('realname','')}".strip(),
+                    "location": t.get("locations_id"),
+                    "title": t.get("usertitles_id")
+                }
+                for t in techs
+            ]
 
-        # 4) Nada
-        return (
-            f"Tu ticket *{ticket_id}* aún no tiene solución, "
-            "seguimiento ni técnico asignado."
-        )
+        # 3) Datos del ticket (solo claves no nulas)
+        ticket = info.get("ticket", {})
+        if ticket:
+            output["ticket"] = {
+                k: v for k, v in ticket.items()
+                if v not in (None, "", [], {})
+                and k in (
+                    "id",
+                    "name",
+                    "closedate",
+                    "solvedate",
+                    "date_mod",
+                    "status",
+                    "content",
+                    "urgency",
+                    "impact",
+                    "priority",
+                    "itilcategories_id",
+                    "type",
+                    "locations_id",
+                    "date_creation",
+                )
+            }
+
+        # 4) Soluciones válidas
+        sols = [
+            {
+                "content": s["content"],
+                "date": s["date_creation"],
+                "has_attachments": bool(s.get("mediaFiles"))
+            }
+            for s in info.get("solutions", [])
+            if s.get("status", "").lower() != "rechazado"
+        ]
+        if sols:
+            output["solutions"] = sols
+
+        # 5) Notas o seguimientos
+        notes = [
+            {
+                "date": n["date_creation"],
+                "content": n["content"],
+                "has_attachments": bool(n.get("mediaFiles"))
+            }
+            for n in info.get("notes", [])
+        ]
+        if notes:
+            output["notes"] = notes
+
+        return json.dumps(output)
+
     except requests.exceptions.RequestException as ex:
         logger.error(f"Error al obtener la información del ticket {ticket_id}: {ex}")
-        return f"No se pudo obtener la información del ticket #{ticket_id}. Intenta nuevamente más tarde."
+        error_obj = {
+            "error": f"No se pudo obtener la información del ticket #{ticket_id}. Intenta nuevamente más tarde."
+        }
+        return json.dumps(error_obj)
