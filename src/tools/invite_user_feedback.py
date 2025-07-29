@@ -33,7 +33,7 @@ def invite_user_feedback(**kwargs):
     try:
         res = requests.post(url, params=params, headers=headers)
         res.raise_for_status()
-        return "Se envio la encuesta del feedback al usuario"
+        return "Se envió la encuesta al usuario; agradécele su disposición para completarla."
     except requests.exceptions.RequestException as ex:
         logger.error(f"Error al enviar la encuesta de feedback: {ex}")
         return "Lo siento, no pude enviarte la encuesta de feedback. Intenta más tarde."
