@@ -32,6 +32,12 @@ def get_ticket_info(**kwargs):
 
     try:
         resp = requests.get(url, params=params, headers=headers)
+        
+        if resp.status_code == 403:
+            return f"El ticket {ticket_id} no le pertenece"
+        if resp.status_code == 409:
+            return f"El ticket {ticket_id} ya se encuentra cerrado y no es posible consultar más detalles."
+        
         resp.raise_for_status()
         info = resp.json()
 
