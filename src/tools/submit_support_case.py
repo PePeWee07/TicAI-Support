@@ -12,6 +12,7 @@ def submit_support_case(**kwargs):
     Parámetros de la función:
     - asunto: titulo del incidente
     - description: Descripcion del incidente
+    - observadores: lista de correos de observadores (opcional)
     
     Datos del usuario
     - phone
@@ -33,6 +34,7 @@ def submit_support_case(**kwargs):
     phone = kwargs.get("phone")
     emailInstitucional = kwargs.get("emailInstitucional")
     emailPersonal = kwargs.get("emailPersonal")
+    emailObservers = kwargs.get("observadores", [])
 
     email = emailInstitucional or emailPersonal or "virtual.assistant.uc@ucacue.edu.ec"
     ticket_data = {
@@ -49,6 +51,18 @@ def submit_support_case(**kwargs):
             "users_id_lastupdater": 0
         }
     }
+    
+    if emailObservers:
+        ticket_data["input"]["_users_id_observer"] = [0] * len(emailObservers)
+        ticket_data["input"]["_users_id_observer_notif"] = {
+            "use_notification": [1] * len(emailObservers),
+            "alternative_email": emailObservers
+        }
+    # else:
+    #     ticket_data["input"]["_users_id_observer"] = None
+    #     ticket_data["input"]["_users_id_observer_notif"] = None
+        
+    print("Ticket data prepared: ", ticket_data)
     
     # URL del endpoint
     urlBase = os.getenv("URL_BACKEND")
