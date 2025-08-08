@@ -24,8 +24,6 @@ def submit_support_case(**kwargs):
     - sexo 
     """
     
-    print("submit_support_case called with kwargs: ", kwargs)
-    
     # Datos Funcion
     description = kwargs.get("description")
     asunto = kwargs.get("asunto")
@@ -58,11 +56,6 @@ def submit_support_case(**kwargs):
             "use_notification": [1] * len(emailObservers),
             "alternative_email": emailObservers
         }
-    # else:
-    #     ticket_data["input"]["_users_id_observer"] = None
-    #     ticket_data["input"]["_users_id_observer_notif"] = None
-        
-    print("Ticket data prepared: ", ticket_data)
     
     # URL del endpoint
     urlBase = os.getenv("URL_BACKEND")
