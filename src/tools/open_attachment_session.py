@@ -3,9 +3,9 @@ from tools.config.registry import register_function, requires_roles
 from config.logging_config import logger
 import os
 
-@requires_roles("agg_attachment", ["DOCENTE", "ADMINISTRATIVO", "ENCARGATURA"])
-@register_function("agg_attachment")
-def agg_attachment(**kwargs):
+@requires_roles("open_attachment_session", ["DOCENTE", "ADMINISTRATIVO", "ENCARGATURA"])
+@register_function("open_attachment_session")
+def open_attachment_session(**kwargs):
     """
     Desconectara el usario temporalmente de CATIA para que cargue los adjuntos.
     
@@ -20,8 +20,6 @@ def agg_attachment(**kwargs):
     - emailPersonal
     - sexo 
     """
-    
-    print("agg_attachment called with kwargs: ", kwargs)
     
     ttl_minutes = "15"
     allowed = "JPG/PNG/PDF/WORD/EXCEL"
@@ -44,10 +42,13 @@ def agg_attachment(**kwargs):
         print("Sending request to URL: ", url)
         response = requests.patch(url, params=params, headers=headers)
         response.raise_for_status()
-        print("Response received: ", response.text)
         return (
-            f"Ya está disponible la opción para enviar archivos o imágenes en esta conversación de WhatsApp. • Se tomarán en cuenta solo los que envíes a partir de este mensaje. • Formatos permitidos: {allowed}. Tamaño máximo {max_size_doc} (documentos) y {max_size_img} (imágenes). • Tienes {ttl_minutes} minutos para enviarlos. Cuando termines, escribeme solo un mensaje de texto para continuar."
+            f"Ya está disponible la sesión/pasarela de adjuntos.\n"
+            f"- Se tomarán en cuenta solo los archivos enviados desde este mensaje y durante los próximos {ttl_minutes} minutos.\n"
+            f"- Formatos permitidos: {allowed}.\n"
+            f"- Tamaño máximo: {max_size_doc} (documentos) y {max_size_img} (imágenes)."
         )
+
     except requests.exceptions.RequestException as ex:
         logger.error(f"Error al enviar el ticket: {ex}")
         return "No se puede receptar adjuntos debido a un error interno, inténtalo más tarde."

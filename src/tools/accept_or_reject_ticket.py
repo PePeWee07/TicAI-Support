@@ -31,7 +31,7 @@ def accept_or_reject_ticket(**kwargs):
         "content": rejection_reason if not accepted else ""
     }
 
-    url = os.getenv("URL_BACKEND") + "v1/glpi/ticket/solution/decision"
+    url = os.getenv("URL_BACKEND") + "v1/whatsapp/user/ticket/solution/decision"
     params = {"whatsappPhone": phone}
     headers = {
         os.getenv("BACKEND_HEADER"): os.getenv("API_KEY_BACKEND")
@@ -43,5 +43,14 @@ def accept_or_reject_ticket(**kwargs):
         data = response.json()
         return data.get("message") or data.get("error")
     except requests.exceptions.RequestException as ex:
-        logger.error(f"Error al registrar la decisión del ticket {ticket_id}: {ex}")
-        return f"No se pudo registrar la decisión sobre el ticket #{ticket_id}. Intenta nuevamente más tarde."
+        error_message = ""
+        if ex.response is not None:
+            try:
+                error_data = ex.response.json()
+                error_message = error_data.get("error", str(ex))
+            except Exception:
+                error_message = str(ex)
+        else:
+            error_message = str(ex)
+        logger.error(f"Error al registrar la decisión del ticket {ticket_id}: {error_message}")
+        return f"No se pudo registrar la decisión sobre el ticket #{ticket_id}: {error_message}"

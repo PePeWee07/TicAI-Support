@@ -21,7 +21,7 @@ def create_ticket_note(**kwargs):
     content = kwargs.get("content")
     
     
-    url = os.getenv("URL_BACKEND") + "v1/glpi/ticket/create/note"
+    url = os.getenv("URL_BACKEND") + "v1/whatsapp/user/ticket/create/note"
     params = {
         "whatsappPhone": phone,
         "ticketId": ticket_id
@@ -33,6 +33,12 @@ def create_ticket_note(**kwargs):
     
     try:
         resp = requests.post(url, params=params, headers=headers, data=content)
+        
+        if resp.status_code == 403:
+            return f"El ticket {ticket_id} no le pertenece"
+        if resp.status_code == 409:
+            return f"El ticket {ticket_id} ya se encuentra cerrado y no es posible agregar un seguimiento."
+        
         resp.raise_for_status()
         data = resp.json()
         return data.get("message")
