@@ -32,12 +32,6 @@ def get_ticket_info(**kwargs):
 
     try:
         resp = requests.get(url, params=params, headers=headers)
-        
-        if resp.status_code == 403:
-            return f"El ticket {ticket_id} no le pertenece"
-        if resp.status_code == 409:
-            return f"El ticket {ticket_id} ya se encuentra cerrado y no es posible consultar más detalles."
-        
         resp.raise_for_status()
         info = resp.json()
 
@@ -110,11 +104,17 @@ def get_ticket_info(**kwargs):
         if notes:
             output["notes"] = notes
 
-        return json.dumps(output)
+        return json.dumps(output) or info.get("error")
 
     except requests.exceptions.RequestException as ex:
-        logger.error(f"Error al obtener la información del ticket {ticket_id}: {ex}")
-        error_obj = {
-            "error": f"No se pudo obtener la información del ticket #{ticket_id}. Intenta nuevamente más tarde."
-        }
-        return json.dumps(error_obj)
+        error_message = ""
+        if ex.response is not None:
+            try:
+                error_data = ex.response.json()
+                error_message = error_data.get("error", str(ex))
+            except Exception:
+                error_message = str(ex)
+        else:
+            error_message = str(ex)
+        logger.error(f"Error al registrar la decisión del ticket {ticket_id}: {error_message}")
+        return f"No se pudo obtener la información del ticket #{ticket_id}: {error_message}"

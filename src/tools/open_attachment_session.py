@@ -21,7 +21,7 @@ def open_attachment_session(**kwargs):
     - sexo 
     """
     
-    ttl_minutes = "15"
+    ttl_minutes = "10"
     allowed = "JPG/PNG/PDF/WORD/EXCEL"
     max_size_doc = "100MB"
     max_size_img = "5MB"

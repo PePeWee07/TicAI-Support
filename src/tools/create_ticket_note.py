@@ -20,7 +20,6 @@ def create_ticket_note(**kwargs):
     phone = kwargs.get("phone")
     content = kwargs.get("content")
     
-    
     url = os.getenv("URL_BACKEND") + "v1/whatsapp/user/ticket/create/note"
     params = {
         "whatsappPhone": phone,
@@ -33,15 +32,19 @@ def create_ticket_note(**kwargs):
     
     try:
         resp = requests.post(url, params=params, headers=headers, data=content)
-        
-        if resp.status_code == 403:
-            return f"El ticket {ticket_id} no le pertenece"
-        if resp.status_code == 409:
-            return f"El ticket {ticket_id} ya se encuentra cerrado y no es posible agregar un seguimiento."
-        
         resp.raise_for_status()
         data = resp.json()
-        return data.get("message")
+        return data.get("message") or data.get("error")
     except requests.exceptions.RequestException as ex:
+        error_message = ""
+        if ex.response is not None:
+            try:
+                error_data = ex.response.json()
+                error_message = error_data.get("error", str(ex))
+            except Exception:
+                error_message = str(ex)
+        else:
+            error_message = str(ex)
         logger.error(f"Error al crear nota para ticket {ticket_id}: {ex}")
-        return f"No se pudo registrar el seguimeinto para el ticket #{ticket_id}. Intenta nuevamente más tarde."
+        return f"No se pudo registrar el seguimeinto para el ticket #{ticket_id}: {error_message}"
+    

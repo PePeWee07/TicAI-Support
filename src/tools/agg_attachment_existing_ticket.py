@@ -26,7 +26,7 @@ def agg_attachment_existing_ticket(**kwargs):
     
     ticket_id = kwargs.get("ticket_id")
     
-    ttl_minutes = "15"
+    ttl_minutes = "10"
     allowed = "JPG/PNG/PDF/WORD/EXCEL"
     max_size_doc = "100MB"
     max_size_img = "5MB"
