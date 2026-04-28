@@ -1,8 +1,8 @@
 version: "3.9"
 
 services:
-  ia-soporte:
-    container_name: ia-soporte-dev
+  whatsapp_assistant:
+    container_name: catia-assistant
     build:
       context: .
       dockerfile: Dockerfile.dev
@@ -11,10 +11,10 @@ services:
     env_file:
       - .env
     environment:
-      - FLASK_ENV=development  # 🔥 Modo Desarrollo
+      - FLASK_ENV=development
     restart: always
     volumes:
-      - .:/app  # 🔥 Bind mount para hot-reload
+      - .:/app
     networks:
       - virtual_assistant_network
     command: ["flask", "run", "--host=0.0.0.0", "--port=5000", "--debug", "--reload"]
