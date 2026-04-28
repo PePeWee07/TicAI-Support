@@ -1,20 +1,21 @@
 from flask import Flask, request, jsonify
+from flask_cors import CORS
+from functools import wraps
+import os
+import atexit
+import datetime
+import pytz
+
 import services.openAIService as openAIService
 from services.utils import moderation_required, validate_token_limit
 from config.logging_config import logger
-import os
-import atexit
 from tools.config.loader import load_tools_from_folder
-import datetime
-import pytz
-from flask_cors import CORS
 from models.userData import UserData
 from pydantic import ValidationError
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True, allow_headers=["Authorization", "Content-Type"])
 
-ENV_MODE = os.getenv("FLASK_ENV", "production")
 API_KEY = os.getenv("API_KEY")
 
 if not API_KEY :
@@ -26,7 +27,6 @@ logger.info("Servicio Iniciado...")
 # =========== Load tools Functions ================
 load_tools_from_folder("src/tools")
 
-
 # =========== Verify Token API_KEY =================
 def require_api_key(f):
     def wrapper(*args, **kwargs):
@@ -36,8 +36,7 @@ def require_api_key(f):
         return f(*args, **kwargs)
     wrapper.__name__ = f.__name__  
     return wrapper
-    
-    
+
 # =========== Input of user ==================
 @app.route('/ask', methods=['POST'])
 @moderation_required
@@ -62,12 +61,6 @@ def process_user_input():
         logger.error(f"Error inesperado al obtener respuesta: {e}")
         return jsonify({"error": str(e)}), 500
 
-
-# ==================================================
-# TODO: Historial
-# ==================================================
-
-
 # ============ Healthcheck =======================
 @app.route('/health', methods=['GET'])
 def health_check():
@@ -78,22 +71,12 @@ def health_check():
         "message": "API is running.",
         "timestamp": formatted_time
     }), 200
-    
 
 # ============ Cerrar recursos al salir ==================
 def clean_up():
-    logger.info("Cerrando aplicación y limpiando recursos.") 
+    logger.info("Cerrando aplicación y limpiando recursos.")
+
 atexit.register(clean_up)
 
-
 if __name__ == '__main__':
-    if ENV_MODE == "development":
-        print("🚀 Modo Desarrollo: Activando Flask Debug Server con Hot Reload")
-        app.run(
-            host="0.0.0.0", 
-            port=5000, 
-            debug=False,
-            threaded=True
-        )
-    else:
-        print("🚀 Modo Producción: Usando Gunicorn")
+    app.run(host="0.0.0.0", port=5000, debug=False, threaded=True)

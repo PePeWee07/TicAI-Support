@@ -1,16 +1,16 @@
 version: "3.9"
 
 services:
-  ia-soporte:
-    container_name: ia-soporte
-    image: pepewee/soportetic-openia:1.1.0-beta
+  whatsapp_assistant:
+    container_name: catia-assistant
+    image: pepewee/soportetic-openia:latest
+    # platform: linux/amd64
     ports:
-      - "5000:5000"
+      - "5001:5000"
     env_file:
       - .env
     environment:
-      - FLASK_ENV=production  # 🔥 Modo Producción
-      - PYTHONPATH=/app/src
+      PYTHONPATH: /app/src
     restart: always
     volumes:
       - IA_Logs:/app/logs
@@ -19,6 +19,7 @@ services:
 
 volumes:
   IA_Logs:
+
 networks:
   virtual_assistant_network:
     external: true

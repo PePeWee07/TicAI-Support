@@ -1,16 +1,17 @@
-# Usa una imagen ligera de Python
-FROM python:3.9-slim
+FROM python:3.12-slim
 
-# Define el directorio de trabajo
 WORKDIR /app
 
-# Copia los archivos de la aplicación
+COPY requirements.txt /app/requirements.txt
+
+RUN pip install --no-cache-dir -r requirements.txt \
+    && pip install --no-cache-dir gunicorn
+
 COPY . /app
 
-# Instala las dependencias
-RUN pip install --no-cache-dir -r requirements.txt
+ENV PYTHONPATH=/app
+ENV FLASK_APP=src/app.py
 
-# Expone el puerto 5000
 EXPOSE 5000
 
 # Usa Gunicorn en lugar de `flask run`
