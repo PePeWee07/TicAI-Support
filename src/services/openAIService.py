@@ -67,6 +67,20 @@ def clean_response(text: str) -> str:
     return text
 
 
+def resolve_allowed_roles(tool_name: str, user: UserData, static_default: set) -> set:
+    """
+    Determina los roles permitidos para una tool:
+    - Si el core envió 'toolPermissions' y la tool está en el mapa -> usa esos roles
+      (aunque sea lista vacía => denegar a todos, p. ej. tool deshabilitada).
+    - Si la tool no está en el mapa, o no se envió el mapa (core caído / payload viejo)
+      -> fallback al @requires_roles estático. Esto hace el sistema resiliente.
+    """
+    perms = getattr(user, "toolPermissions", None)
+    if perms and tool_name in perms:
+        return {r.strip().upper() for r in (perms.get(tool_name) or [])}
+    return static_default
+
+
 def process_required_action(tool_calls: list, user: UserData, restricted: bool) -> list:
     results = []
     user_roles = {r.strip().upper() for r in user.roles}
@@ -89,7 +103,8 @@ def process_required_action(tool_calls: list, user: UserData, restricted: bool) 
             )
             continue
 
-        allowed = entry.get("allowed_roles", set())
+        # Permisos dinámicos (enviados por el core); fallback al decorador estático.
+        allowed = resolve_allowed_roles(call.name, user, entry.get("allowed_roles", set()))
         if not allowed:
             results.append(
                 {

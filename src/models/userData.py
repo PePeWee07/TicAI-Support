@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, EmailStr
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 class UserData(BaseModel):
     ask: str = Field(..., min_length=1)
@@ -13,3 +13,8 @@ class UserData(BaseModel):
     emailInstitucional: Optional[EmailStr] = None
     emailPersonal: Optional[EmailStr] = None
     sexo: Optional[str] = None
+
+    # Permisos dinámicos de tools enviados por el core: { "tool_name": ["ROL1", "ROL2"] }.
+    # Si una tool aparece aquí, manda sobre el decorador estático (lista vacía = denegar a todos).
+    # Si es None o la tool no aparece, se usa el @requires_roles estático como fallback.
+    toolPermissions: Optional[Dict[str, List[str]]] = None
