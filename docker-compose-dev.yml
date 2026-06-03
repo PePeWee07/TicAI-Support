@@ -2,7 +2,7 @@ version: "3.9"
 
 services:
   whatsapp_assistant:
-    container_name: catia-assistant-dev
+    container_name: catia-assistant
     build:
       context: .
       dockerfile: Dockerfile
