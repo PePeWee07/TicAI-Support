@@ -80,13 +80,18 @@ def resolve_allowed_roles(tool_name: str, user: UserData, static_default: set) -
         return {r.strip().upper() for r in (perms.get(tool_name) or [])}
     return static_default
 
-
-def process_required_action(tool_calls: list, user: UserData, restricted: bool) -> list:
+def process_required_action(tool_calls: list, user: UserData, restricted: bool, executed_this_turn: set) -> list:
     results = []
     user_roles = {r.strip().upper() for r in user.roles}
+    cooldowns = user.toolCooldowns or {}
+    remaining = user.toolCooldownRemaining or {}
+    logger.info("🧊 [cooldown] recibido del core | toolCooldowns=%s | toolCooldownRemaining=%s | ejecutadas_en_turno=%s",
+                cooldowns, remaining, sorted(executed_this_turn))
+    logger.info("🧊 [tools] el modelo pidió ejecutar: %s", [c.name for c in tool_calls])
 
     for call in tool_calls:
         tid = call.call_id
+        logger.info("🧊 ───── evaluando tool: %s ─────", call.name)
         # Bloqueo global
         if restricted:
             msg = f"El usuario no tiene permitodo realizar esta acción por su roles: {user_roles}"
@@ -122,6 +127,30 @@ def process_required_action(tool_calls: list, user: UserData, restricted: bool) 
             )
             continue
 
+        # Enfriamiento (cooldown). cd = segundos configurados; si > 0 la tool es "limitada".
+        cd = cooldowns.get(call.name, 0) or 0
+        logger.info("🧊 [cooldown] %s | cd_config=%ss | ya_en_turno=%s | restante_recibido=%ss",
+                    call.name, cd, call.name in executed_this_turn, remaining.get(call.name, 0))
+        if cd > 0:
+            # 1) Dentro del mismo turno: máximo una ejecución (evita varias en una interacción).
+            if call.name in executed_this_turn:
+                logger.info("🧊 [cooldown] DENEGADA → repetida en el mismo mensaje: %s", call.name)
+                results.append({
+                    "tool_call_id": tid,
+                    "output": "⏳ Ya ejecuté esta acción en esta interacción. Inténtalo más tarde.",
+                })
+                continue
+            # 2) Entre interacciones: el core ya calculó cuántos segundos faltan.
+            rem = remaining.get(call.name, 0) or 0
+            if rem > 0:
+                logger.info("🧊 [cooldown] DENEGADA → en enfriamiento, faltan %ss: %s", rem, call.name)
+                results.append({
+                    "tool_call_id": tid,
+                    "output": f"⏳ Esta acción está en enfriamiento. Vuelve a intentarlo en {rem} segundos.",
+                })
+                continue
+        logger.info("🧊 [cooldown] OK → %s puede ejecutarse", call.name)
+
         # Parsear args y completar con datos de usuario
         try:
             args = json.loads(call.arguments) if call.arguments else {}
@@ -143,6 +172,10 @@ def process_required_action(tool_calls: list, user: UserData, restricted: bool) 
         # Ejecutar función
         try:
             output = entry["func"](**args)
+            if cd > 0:
+                executed_this_turn.add(call.name)  # marca la ejecución exitosa para el cooldown
+                logger.info("🧊 [cooldown] EJECUTADA y marcada en el turno: %s | executed_this_turn=%s",
+                            call.name, sorted(executed_this_turn))
         except Exception as e:
             logger.error(f"Error ejecutando {call.name}: {e}")
             output = "Error interno al ejecutar la función."
@@ -152,11 +185,12 @@ def process_required_action(tool_calls: list, user: UserData, restricted: bool) 
     return results
 
 
-def get_response(user: UserData) -> tuple[str, str, list]:
+def get_response(user: UserData) -> tuple[str, str, list, list]:
     # 1) Historial de conversación
     conversation = [{"role":"user","content":user.ask}]
     audit_logs = []
     prev_conv_len = 0                # indice donde empezo este turno
+    executed_this_turn = set()       # tools con cooldown ejecutadas en este /ask (para reportar al core)
 
     # 2) Primera llamada
     response = client.responses.create(
@@ -201,7 +235,7 @@ def get_response(user: UserData) -> tuple[str, str, list]:
             break
 
         # ejecuto las funciones y las añado a conversation
-        outputs = process_required_action(calls, user, is_globally_restricted(user.roles))
+        outputs = process_required_action(calls, user, is_globally_restricted(user.roles), executed_this_turn)
         for call, out in zip(calls, outputs):
             conversation.append({
                 "type":       "function_call",
@@ -259,7 +293,8 @@ def get_response(user: UserData) -> tuple[str, str, list]:
         if item.type=="message"
     ]
     answer = clean_response("\n\n".join(texts))
-    return answer, response.id, audit_logs
+    logger.info("🧊 [cooldown] executedTools reportadas al core: %s", sorted(executed_this_turn))
+    return answer, response.id, audit_logs, sorted(executed_this_turn)
 
 # =========== Umbral de moderación ===================
 UMBRAL_CATEGORIES = {
