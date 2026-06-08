@@ -185,6 +185,49 @@ def process_required_action(tool_calls: list, user: UserData, restricted: bool, 
     return results
 
 
+def build_prompt(user: UserData) -> dict:
+    """Construye el bloque 'prompt' (id + variables) para la API Responses."""
+    return {
+        "id": PROMPT_ID,
+        "variables": {
+            "phone":               user.phone or "unknown",
+            "names":               user.name or "unknown",
+            "roles":               ", ".join(user.roles) if user.roles else "unknown",
+            "identificacion":      user.identificacion or "unknown",
+            "email_institucional": user.emailInstitucional or "unknown",
+            "email_personal":      user.emailPersonal or "unknown",
+            "sexo":                user.sexo or "unknown",
+        },
+    }
+
+
+def create_model_response(user: UserData, conversation: list, previous_response_id):
+    """Llama a la API Responses de OpenAI con el prompt y la conversación dados."""
+    return client.responses.create(
+        prompt=build_prompt(user),
+        input=conversation,
+        previous_response_id=previous_response_id,
+        store=True,
+        parallel_tool_calls=True,
+    )
+
+
+def build_audit_entry(full: dict, new_input: list) -> dict:
+    """Construye una entrada de auditoría a partir de la respuesta de OpenAI."""
+    return {
+        "response_id":          full["id"],
+        "previous_response_id": full["previous_response_id"],
+        "created_at":           full["created_at"],
+        "model":                full["model"],
+        "prompt":               full["prompt"],
+        "usage":                full["usage"],
+        "input":                new_input,
+        "output":               full["output"],
+        "metadata":             full.get("metadata", {}),
+        "reasoning":            full.get("reasoning", {}),
+    }
+
+
 def get_response(user: UserData) -> tuple[str, str, list, list]:
     # 1) Historial de conversación
     conversation = [{"role":"user","content":user.ask}]
@@ -193,39 +236,11 @@ def get_response(user: UserData) -> tuple[str, str, list, list]:
     executed_this_turn = set()       # tools con cooldown ejecutadas en este /ask (para reportar al core)
 
     # 2) Primera llamada
-    response = client.responses.create(
-        prompt={
-            "id": PROMPT_ID,
-            "variables": {
-                "phone": user.phone if user.phone else "unknown",
-                "names": user.name if user.name else "unknown",
-                "roles": ", ".join(user.roles) if user.roles else "unknown",
-                "identificacion": user.identificacion if user.identificacion else "unknown",
-                "email_institucional": user.emailInstitucional if user.emailInstitucional else "unknown",
-                "email_personal": user.emailPersonal if user.emailPersonal else "unknown",
-                "sexo": user.sexo if user.sexo else "unknown"
-            }
-        },
-        input=conversation,
-        previous_response_id=user.previousResponseId,
-        store=True,
-        parallel_tool_calls=True
-    )
+    response = create_model_response(user, conversation, user.previousResponseId)
     full = response.to_dict()
     # --- guardo solo los bloques nuevos ---
     new_input = conversation[prev_conv_len:]      # aqui solo la pregunta del user
-    audit_logs.append({
-        "response_id":         full["id"],
-        "previous_response_id":full["previous_response_id"],
-        "created_at":          full["created_at"],
-        "model":               full["model"],
-        "prompt":              full["prompt"],
-        "usage":               full["usage"],
-        "input":               new_input,
-        "output":              full["output"],
-        "metadata":            full.get("metadata", {}),
-        "reasoning":           full.get("reasoning", {})
-    })
+    audit_logs.append(build_audit_entry(full, new_input))
     prev_conv_len = len(conversation)              # actualizo indice
 
     # 3) Bucle de function calls
@@ -250,40 +265,12 @@ def get_response(user: UserData) -> tuple[str, str, list, list]:
             })
 
         # 4) Segunda llamada con la conversacion extendida
-        response = client.responses.create(
-            prompt={
-                "id": PROMPT_ID,
-                "variables": {
-                    "phone": user.phone if user.phone else "unknown",
-                    "names": user.name if user.name else "unknown",
-                    "roles": ", ".join(user.roles) if user.roles else "unknown",
-                    "identificacion": user.identificacion if user.identificacion else "unknown",
-                    "email_institucional": user.emailInstitucional if user.emailInstitucional else "unknown",
-                    "email_personal": user.emailPersonal if user.emailPersonal else "unknown",
-                    "sexo": user.sexo if user.sexo else "unknown"
-                }
-            },
-            input=conversation,
-            previous_response_id=full["id"],
-            store=True,
-            parallel_tool_calls=True
-        )
+        response = create_model_response(user, conversation, full["id"])
         full = response.to_dict()
 
         # --- de nuevo guardo sólo los bloques añadidos desde prev_conv_len ---
         new_input = conversation[prev_conv_len:]
-        audit_logs.append({
-            "response_id":         full["id"],
-            "previous_response_id":full["previous_response_id"],
-            "created_at":          full["created_at"],
-            "model":               full["model"],
-            "prompt":              full["prompt"],
-            "usage":               full["usage"],
-            "input":               new_input,
-            "output":              full["output"],
-            "metadata":            full.get("metadata", {}),
-            "reasoning":           full.get("reasoning", {})
-        })
+        audit_logs.append(build_audit_entry(full, new_input))
         prev_conv_len = len(conversation)          # muevo el indice
 
     # 5) Extraigo la respuesta final
