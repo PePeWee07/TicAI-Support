@@ -1,5 +1,22 @@
 from pydantic import BaseModel, Field, EmailStr
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
+
+
+class PromptConfig(BaseModel):
+    """
+    Configuración del prompt enviada por el core (WhatsappApiCloud).
+    """
+    instructions: str
+    model: str
+    temperature: Optional[float] = None
+    top_p: Optional[float] = None
+    max_output_tokens: Optional[int] = None   # None => sin límite
+    reasoning: Optional[Dict[str, Any]] = None
+    tools: Optional[List[Dict[str, Any]]] = None
+    include: Optional[List[str]] = None
+    text: Optional[Dict[str, Any]] = None
+    store: bool = True
+
 
 class UserData(BaseModel):
     ask: str = Field(..., min_length=1)
@@ -24,3 +41,6 @@ class UserData(BaseModel):
     #  - toolCooldownRemaining: segundos que le quedan a ESTE usuario { "tool_name": 120 }.
     toolCooldowns: Optional[Dict[str, int]] = None
     toolCooldownRemaining: Optional[Dict[str, int]] = None
+
+    # Configuración del prompt enviada por el core (instructions, model, params, tools, ...) OBLIGATORIO
+    promptConfig: PromptConfig

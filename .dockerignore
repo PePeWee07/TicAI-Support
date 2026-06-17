@@ -3,5 +3,7 @@ __pycache__/
 *.pyo
 *.pyd
 .env
+.env.prod
 .DS_Store
 .vscode/
+test/

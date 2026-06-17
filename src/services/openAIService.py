@@ -17,7 +17,6 @@ GPT_TICS_KEY = os.getenv("GPT_TICS_KEY")
 MODERATION_KEY = os.getenv("MODERATION_KEY")
 MODEL_MODERATION = os.getenv("MODEL_MODERATION")
 ENCODING_BASE = os.getenv("ENCODING_BASE")
-PROMPT_ID = os.getenv("PROMPT_ID")
 if not GPT_TICS_KEY:
     logger.error(
         "La Api_key 'GPT_TICS_KEY' de OpenAI no está configura en la variables de entorno."
@@ -45,13 +44,6 @@ if not ENCODING_BASE:
     )
     raise ValueError(
         "El encoding 'ENCODING_BASE' de TikToken no está configura en las variables de entorno."
-    )
-if not PROMPT_ID:
-    logger.error(
-        "El Prompt 'PROMPT_ID' no está configurado en las variables de entorno."
-    )
-    raise ValueError(
-        "El Prompt 'PROMPT_ID' no está configurado en las variables de entorno."
     )
 
 # ========== Instancia de OpenAI ======================
@@ -185,31 +177,36 @@ def process_required_action(tool_calls: list, user: UserData, restricted: bool, 
     return results
 
 
-def build_prompt(user: UserData) -> dict:
-    """Construye el bloque 'prompt' (id + variables) para la API Responses."""
-    return {
-        "id": PROMPT_ID,
-        "variables": {
-            "phone":               user.phone or "unknown",
-            "names":               user.name or "unknown",
-            "roles":               ", ".join(user.roles) if user.roles else "unknown",
-            "identificacion":      user.identificacion or "unknown",
-            "email_institucional": user.emailInstitucional or "unknown",
-            "email_personal":      user.emailPersonal or "unknown",
-            "sexo":                user.sexo or "unknown",
-        },
-    }
-
-
 def create_model_response(user: UserData, conversation: list, previous_response_id):
-    """Llama a la API Responses de OpenAI con el prompt y la conversación dados."""
-    return client.responses.create(
-        prompt=build_prompt(user),
-        input=conversation,
-        previous_response_id=previous_response_id,
-        store=True,
-        parallel_tool_calls=True,
-    )
+    """
+    Llama a la API Responses de OpenAI usando la configuración del prompt que envía el core
+    (instructions / model / tools / params).
+    """
+    cfg = user.promptConfig
+    kwargs = {
+        "model": cfg.model,
+        "instructions": cfg.instructions,
+        "input": conversation,
+        "previous_response_id": previous_response_id,
+        "store": cfg.store,
+        "parallel_tool_calls": True,
+    }
+    # Parámetros opcionales: solo se envían si vienen, para no pisar los defaults de OpenAI.
+    if cfg.tools is not None:
+        kwargs["tools"] = cfg.tools
+    if cfg.temperature is not None:
+        kwargs["temperature"] = cfg.temperature
+    if cfg.top_p is not None:
+        kwargs["top_p"] = cfg.top_p
+    if cfg.max_output_tokens is not None:
+        kwargs["max_output_tokens"] = cfg.max_output_tokens
+    if cfg.reasoning is not None:
+        kwargs["reasoning"] = cfg.reasoning
+    if cfg.include is not None:
+        kwargs["include"] = cfg.include
+    if cfg.text is not None:
+        kwargs["text"] = cfg.text
+    return client.responses.create(**kwargs)
 
 
 def build_audit_entry(full: dict, new_input: list) -> dict:
@@ -219,7 +216,7 @@ def build_audit_entry(full: dict, new_input: list) -> dict:
         "previous_response_id": full["previous_response_id"],
         "created_at":           full["created_at"],
         "model":                full["model"],
-        "prompt":               full["prompt"],
+        "prompt":               full.get("prompt"),
         "usage":                full["usage"],
         "input":                new_input,
         "output":               full["output"],

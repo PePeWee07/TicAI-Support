@@ -4,4 +4,4 @@ __pycache__/
 .env.prod
 logs/
 *.log
-test.py
+test/
